@@ -16,12 +16,15 @@
 
 
 /* mutex pour proteger le compteur de client  */
-static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t mutex_cpt = PTHREAD_MUTEX_INITIALIZER;
+
+/* mutex pour proteger le compteur de client  */
+static pthread_mutex_t mutex_thread = PTHREAD_MUTEX_INITIALIZER;
 
 /* nombre de client en simultané */
 int cpt = 0;
 
-/* rajouter un mutex pour l'utilisation du tableau */
+/* rajouter un mutex_cpt pour l'utilisation du tableau */
 /* tableau des threads libre  */
   int *free_thread;
   
@@ -29,12 +32,15 @@ int cpt = 0;
 
 /* le thread lancé pour le traitement d'un client  */
 void *traitement_client(void *requete) {
+  int ind = 0;
 
-
+#ifdef DEBUG
+  printf ("dans le thread\n");
+#endif
 
   /* prendre le compteur  */
-  if (pthread_mutex_lock (&mutex) < 0) {
-    perror ("unlock mutex seveur");
+  if (pthread_mutex_lock (&mutex_cpt) < 0) {
+    perror ("unlock mutex_cpt thread");
     exit (1);
   }
 
@@ -42,10 +48,26 @@ void *traitement_client(void *requete) {
   cpt --;
 
   /* gerer le tableau des threads remettre le bon indice a 0 */
+
+  /* prednre le tableau  */
+  if (pthread_mutex_lock (&mutex_thread) < 0) {
+    perror ("unlock mutex_thread thread");
+    exit (1);
+  }
+
+  /*dernier char de requete = indice*/
+  free_thread [ind] = 0;
+
+  /* rendre le tableau  */
+  if (pthread_mutex_unlock (&mutex_thread) < 0) {
+    perror ("unlock mutex_thread thread");
+    exit (1);
+  }
+
   
   /* relacher le compteur  */
-  if (pthread_mutex_unlock (&mutex) < 0) {
-    perror ("unlock mutex seveur");
+  if (pthread_mutex_unlock (&mutex_cpt) < 0) {
+    perror ("unlock mutex_cpt thread");
     exit (1);
   }
 
@@ -152,8 +174,8 @@ int main (int argc, char ** argv) {
      /* acceder au compteur pour chercher si il y a assez de place
 	pour un nouveau
       */     
-     if (pthread_mutex_lock (&mutex) < 0) {
-       perror ("lock mutex seveur");
+     if (pthread_mutex_lock (&mutex_cpt) < 0) {
+       perror ("lock mutex_cpt seveur");
        exit (1);
      }
      
@@ -163,12 +185,26 @@ int main (int argc, char ** argv) {
 	  le plus simple un tableau (pas efficace ni rien mais bon
 	*/
        ind = 0;
-       while (free_thread[ind] == 1) {
-	 ind ++;
-       }
-       /* le marqué comme pris */
-       free_thread[ind] = 1;
 
+     /* prednre le tableau  */
+     if (pthread_mutex_lock (&mutex_thread) < 0) {
+       perror ("lock mutex_thread seveur");
+       exit (1);
+     }
+
+     while (free_thread[ind] == 1) {
+       ind ++;
+     }
+     /* le marqué comme pris */
+     free_thread[ind] = 1;
+     
+     /* relacher le tableau  */
+     if (pthread_mutex_unlock (&mutex_thread) < 0) {
+       perror ("unlock mutex_thread seveur");
+       exit (1);
+     }
+
+       
        /* pour pouvoir recuperer l'indice du tableau  */
        buff [200] = ind;
        
@@ -188,15 +224,15 @@ int main (int argc, char ** argv) {
      }
 
      /* relacher le compteur  */
-     if (pthread_mutex_unlock (&mutex) < 0) {
-       perror ("unlock mutex seveur");
+     if (pthread_mutex_unlock (&mutex_cpt) < 0) {
+       perror ("unlock mutex_cpt seveur");
        exit (1);
      }
      
    }    
    
   /*   variable partagées dans les threads
-       -> mettre un mutex pour la gestion du compteur de clients
+       -> mettre un mutex_cpt pour la gestion du compteur de clients
 
        ->creer la socket en UDP
        ->remplir les informations
@@ -233,7 +269,7 @@ int main (int argc, char ** argv) {
 
        -> envoyer la reponse au client (ip dans la requette)
 
-       -> decrementer cpt (mutex et tout)
+       -> decrementer cpt (mutex_cpt et tout)
 
        -> finir le thread
 
