@@ -4,10 +4,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <string.h>
+
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-#include <string.h>
+
 #include <pthread.h>
 
 /* include .h de nous  */
@@ -16,12 +18,50 @@
 /* mutex pour proteger le compteur de client  */
 static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
+/* nombre de client en simultané */
+int cpt = 0;
+
+/* rajouter un mutex pour l'utilisation du tableau */
+/* tableau des threads libre  */
+  int *free_thread;
+  
+
 
 /* le thread lancé pour le traitement d'un client  */
-void *fn_thread_http(void *requete) {
+void *traitement_client(void *requete) {
+
+
+
+  /* prendre le compteur  */
+  if (pthread_mutex_lock (&mutex) < 0) {
+    perror ("unlock mutex seveur");
+    exit (1);
+  }
+
+  /* liberer de la place pour un nouveau client*/
+  cpt --;
+
+  /* gerer le tableau des threads remettre le bon indice a 0 */
+  
+  /* relacher le compteur  */
+  if (pthread_mutex_unlock (&mutex) < 0) {
+    perror ("unlock mutex seveur");
+    exit (1);
+  }
 
   return NULL;
 }
+
+
+
+/* test si le message est bien formé ou non  */
+int msg_bien_forme (char *buff, int taille) {
+  if ( (buff[taille-1] == '\n') && (buff[taille-2] == '\n') )
+    return 1;
+  else return 0;
+}
+
+
 
 
 int main (int argc, char ** argv) {
@@ -36,21 +76,33 @@ int main (int argc, char ** argv) {
   /* structure qui contient les informations de la socket */
   struct sockaddr_in sinf ;
 
-  /* nombre de client en simultané */
-  int cpt = 0;
+  /* taille lu de rcvfrom  */
+  int n = 0;
+
+  /* buffer ou l'on stocke les message lu  */
+  char buff [201];
+
+  /* tableau de thread  */
+  pthread_t *pthread ;
+  
+  /* indice du premier thread libre dans le tableau  */
+  int ind = 0;
 
   /* verification si l'appel au programme est bon  */
   if (argc != 4) {
     perror ("mauvaise utilisation\n [port] [nbclientmax] [q5]");
     exit (1);
   }
-
+ 
   /* recuperation des variables  */
   num_port   = atoi (argv[1]);
   nb_client  = atoi (argv[2]);
   num_cpt    = atoi (argv[3]);
 
-
+  /* creation du tableau de thread en fonction du nombre de client */
+  pthread = malloc (nb_client * sizeof (pthread_t));
+  free_thread = malloc (nb_client * sizeof (int));
+  
   /* creation de la socket  */
   if ( (sockd = socket (AF_INET, SOCK_DGRAM, 0)) < 0) {
     perror ("socket()");
@@ -73,6 +125,29 @@ int main (int argc, char ** argv) {
    /* traitement re la reception des messages du serveur  */
    while (1) {
 
+     /* stocker le message lu dans buff
+     	et regarder si buff n-1 et n-2 == \n
+	-> message bien formé
+	
+	si bien formé passer a la suite
+	recommencer
+
+	while sur le resultat d'un fonction ?
+     */
+
+#ifdef DEBUG
+     printf( "serveur en ecoute\n");
+#endif
+     
+     n = recvfrom (sockd, buff, 200, 0, NULL, NULL);
+     
+     while (msg_bien_forme (buff,n) != 1) {
+       n = recvfrom (sockd, buff, 200, 0, NULL, NULL);
+     }
+
+#ifdef DEBUG
+     printf( "reception d'un message bien formé\n");
+#endif
 
      /* acceder au compteur pour chercher si il y a assez de place
 	pour un nouveau
@@ -83,10 +158,33 @@ int main (int argc, char ** argv) {
      }
      
      if (cpt < nb_client) {
-       /* creer un nouveau thread  */
 
+       /* gestion des thread libre ou pas...
+	  le plus simple un tableau (pas efficace ni rien mais bon
+	*/
+       ind = 0;
+       while (free_thread[ind] == 1) {
+	 ind ++;
+       }
+       /* le marqué comme pris */
+       free_thread[ind] = 1;
+
+       /* pour pouvoir recuperer l'indice du tableau  */
+       buff [200] = ind;
+       
+       /* creer un nouveau thread  */
+       if ( pthread_create(&pthread[ind], NULL, traitement_client,
+			   buff) == -1) {
+	 perror("pthread_create");
+	 exit (1);
+       }
+       
+       
        /* incrementation du compteur de client  */
        cpt ++;
+#ifdef DEBUG
+       printf ("NBCLIENT : %d\n", cpt);
+#endif
      }
 
      /* relacher le compteur  */
@@ -95,8 +193,8 @@ int main (int argc, char ** argv) {
        exit (1);
      }
      
-   }   
-  
+   }    
+   
   /*   variable partagées dans les threads
        -> mettre un mutex pour la gestion du compteur de clients
 
@@ -105,7 +203,15 @@ int main (int argc, char ** argv) {
        ->faire un bind pour les lier (detruire la connextion existance 
        si il en existe une
 
-	lire en continue de flux dentrée
+       -->lire en continue de flux dentrée :
+
+       ---> attendre d'avoir un message bien formé dans le buffer
+                GET /chemin HTTP/1.1\nHost: XXX.X.X.X\n\n  
+	   -> le retirer du buffer (chiant... )
+	        --> copier de buff [size] a size max dans buff [0] 
+		    puis remplir le reste de 0 
+		    laisser l'offset du tableau a offset - size 
+
        une fois un message bien formé arrive :
            -> incrementer cpt, test et tout
 	   -> creer un thread avec le message en argument
