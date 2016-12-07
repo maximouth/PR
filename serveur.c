@@ -1,8 +1,8 @@
 #include "client.h"
 #include "server.h"
 
-#define TH_BUSY 1
-#define TH_FREE 0
+#define CL_BUSY 1
+#define CL_FREE 0
 #define DEBUG
 
 
@@ -144,22 +144,23 @@ int main (int argc, char ** argv) {
       /* prendre le tableau  */
       ind = 0;
       if (pthread_mutex_lock (&mutex_thread) < 0) {
-	perror ("lock mutex_thread seveur");
-	exit (1);
+		perror ("lock mutex_thread seveur");
+		exit (1);
       }
 
-      while (free_client[ind] == TH_BUSY) {
+      while (free_client[ind] == CL_BUSY) {
 	ind ++;
       }
       /* le marquer comme pris */
-      free_client[ind] = TH_BUSY;
+      free_client[ind] = CL_BUSY;
      
       /* relacher le tableau  */
       if (pthread_mutex_unlock (&mutex_thread) < 0) {
-	perror ("unlock mutex_thread seveur");
-	exit (1);
+		perror ("unlock mutex_thread seveur");
+		exit (1);
       }
       clients[ind].sock = client_sock;
+      clients[ind].index = ind;
 
       /* Create pthread associated with the new client */
       if ( pthread_create(&(clients[ind].thread), NULL, traitement_client,
@@ -309,23 +310,30 @@ int main (int argc, char ** argv) {
 
 
 /* le thread lancé pour le traitement d'un client  */
-void *traitement_client(void *requete) {
-  int ind = 0;
+void *traitement_client(void *client) {
+
+  Client* c = (Client *) client;
+  int n;
+  char buffer[BUF_SIZE];
 
 #ifdef DEBUG
   printf ("dans le thread\n");
 #endif
-
-  /* prendre le compteur  */
-  if (pthread_mutex_lock (&mutex_cpt) < 0) {
-    perror ("unlock mutex_cpt thread");
-    exit (1);
+  if ((n = recv(c->sock, buffer, BUF_SIZE -1, 0)) < 1) {
+  	perror("recv()");
+  	exit(1);
   }
-
-  /* liberer de la place pour un nouveau client*/
-  cpt --;
-
-  /* gerer le tableau des threads remettre le bon indice a 0 */
+  #ifdef DEBUG
+  	printf("Lu\n");
+  	fflush(stdout);
+  	#endif
+  if (msg_bien_forme(buffer, n)) {
+  	/* Traitement de la requete */
+  	#ifdef DEBUG
+  	printf("Bien forme\n");
+  	fflush(stdout);
+  	#endif
+  }
 
   /* prednre le tableau  */
   if (pthread_mutex_lock (&mutex_thread) < 0) {
@@ -334,21 +342,17 @@ void *traitement_client(void *requete) {
   }
 
   /*dernier char de requete = indice*/
-  free_client [ind] = 0;
+  free_client [c->index] = CL_FREE;
+  #ifdef DEBUG
+  	printf("mutex\n");
+  	fflush(stdout);
+  #endif
 
   /* rendre le tableau  */
   if (pthread_mutex_unlock (&mutex_thread) < 0) {
     perror ("unlock mutex_thread thread");
     exit (1);
   }
-
-  
-  /* relacher le compteur  */
-  if (pthread_mutex_unlock (&mutex_cpt) < 0) {
-    perror ("unlock mutex_cpt thread");
-    exit (1);
-  }
-
   return NULL;
 }
 
@@ -356,7 +360,12 @@ void *traitement_client(void *requete) {
 
 /* test si le message est bien formé ou non  */
 int msg_bien_forme (char *buff, int taille) {
-  if ( (buff[taille-1] == '\n') && (buff[taille-2] == '\n') )
+  if ( ((buff[taille-1] == '\n') && (buff[taille-2] == '\n')) || 
+  	/* Ends with \n\n */
+  	((buff[taille-1] == '\n') && (buff[taille-2] == '\r') && 
+  		(buff[taille-3] == '\n') && (buff[taille-4] == '\r'))
+  		/* Ends with \r\n\r\n */
+  	)
     return 1;
   else return 0;
 }

@@ -22,10 +22,6 @@
 /* defines */
 #define BUF_SIZE 201
 
-
-/* mutex pour proteger le compteur de client  */
-static pthread_mutex_t mutex_cpt = PTHREAD_MUTEX_INITIALIZER;
-
 /* mutex pour proteger le compteur de client  */
 static pthread_mutex_t mutex_thread = PTHREAD_MUTEX_INITIALIZER;
 
@@ -35,7 +31,7 @@ int cpt = 0;
 int *free_client;
   
 /* Prototypes */
-void *traitement_client(void *requete);
+void *traitement_client(void *client);
 int msg_bien_forme (char *buff, int taille);
 
 #endif

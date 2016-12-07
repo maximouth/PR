@@ -7,6 +7,7 @@ typedef struct {
 	struct sockaddr_in csinf;
 	int sock;
 	pthread_t thread;
+	int index;
 } Client;
 
 #endif
