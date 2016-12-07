@@ -12,17 +12,18 @@ int main (int argc, char ** argv) {
   int nb_client = 0;
   int num_cpt   = 0;
 
+  char buffer[BUF_SIZE];
+
   /* descripteur de la socket */
   int sockd;
 
   /* structure qui contient les informations de la socket */
   struct sockaddr_in sinf ;
 
-  /*TODO com */
-
-  /* List of sockets onto which connection is established */
-  /* TODO: Clients struct */
+  /* List of clients */
   Client clients[nb_client];
+
+  /* Set of socket descriptor for select */
   fd_set rdfs;
   int current = 0;
 
@@ -109,11 +110,18 @@ int main (int argc, char ** argv) {
     /* Input on STDIN */
     if (FD_ISSET(STDIN_FILENO, &rdfs)) {
 #ifdef DEBUG
-      printf( "STDNIN\n");
+      printf( "STDIN\n");
       fflush(stdout);
 #endif
-      /* TODO : Stop serv execution */
-      stop_flag = 0;
+      if(read(STDIN_FILENO, buffer, BUF_SIZE)<0) {
+      	perror("read() STDIN");
+      	exit(1);
+      }
+
+      if(strncmp("QUIT\n",buffer,5)==0){
+      	stop_flag = 0;
+      	/* TODO : print to user how to quit */
+      }
       continue;
     }
 
@@ -295,7 +303,7 @@ int main (int argc, char ** argv) {
 
   */
   
-  
+  close(sockd);
   return 0;
 }
 
