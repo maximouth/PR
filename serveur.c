@@ -15,6 +15,11 @@
 /* include .h de nous  */
 
 
+/* defines */
+#define BUF_SIZE 201
+#define DEBUG
+
+
 /* mutex pour proteger le compteur de client  */
 static pthread_mutex_t mutex_cpt = PTHREAD_MUTEX_INITIALIZER;
 
@@ -48,13 +53,25 @@ int main (int argc, char ** argv) {
   /* taille lu de rcvfrom  */
   int n = 0;
 
-  /* buffer ou l'on stocke les message lu  */
-  char buff [201];
+  /* buffer ou l'on stocke les message lu
+   * et entier pour sa manipulation */
+  char buff [BUF_SIZE];
+  int current = 0;
+
+  /* List of sockets onto which connection is established */
+  /* TODO: Clients struct */
+  Clients clients[nb_clients];
+  fd_set rdfs;
+
+  /* stop flag for the server */
+  int stop_flag;
 
   /* tableau de thread  */
+  /*TODO : do we still need it with TCP? */
   pthread_t *pthread ;
   
   /* indice du premier thread libre dans le tableau  */
+  /*TODO : do we still need it with TCP? */
   int ind = 0;
 
   /* verification si l'appel au programme est bon  */
@@ -100,95 +117,135 @@ int main (int argc, char ** argv) {
   printf( "End server setup.")
  #endif
 
-    
+  /* as we're using TCP instead of UDP, the treatment is different */
+
+  max = sock;
+  current = 0;
+  stop_flag = 1;
+
+  while(stop_flag) {
+  	int i = 0;
+  	FD_ZERO(&rdfs);
+
+  	/* Add stdin and sock to rdfs */
+  	FD_SET(STDIN_FILENO, &rdfs);
+  	FD_SET(sock, &rdfs);
+
+  	/* Add each client */
+  	for(i=0; i<current; i++) {
+  		FD_SET(clients[i].sock, &rdfs);
+  	}
+
+  	/* Select from rdfs */
+  	if (select(max+1, &rdfs, NULL, NULL, NULL) < 0) {
+  		perror("select()");
+  		exit(1);
+  	}
+
+  	/* Input on STDIN */
+  	if (FD_ISSET(STDIN_FILENO, &rdfs)) {
+  		/* TODO : Stop serv execution */
+  		break;
+  	}
+
+  	/* Connection attempt */
+  	if (FD_ISSET(sock, &rdfs)) {
+  		/* TODO : attempt treatment
+  		 * check nb of clients,
+  		 * update max ... */
+  	}
+
+  	/* Request from already connected client */
+  	/* TODO */
+  }
 
 
    /* traitement re la reception des messages du serveur  */
-   while (1) {
+//    while (1) {
 
-     /* stocker le message lu dans buff
-     	et regarder si buff n-1 et n-2 == \n
-	-> message bien formé
+//      /* stocker le message lu dans buff
+//      	et regarder si buff n-1 et n-2 == \n
+// 	-> message bien formé
 	
-	si bien formé passer a la suite
-	recommencer
+// 	si bien formé passer a la suite
+// 	recommencer
 
-	while sur le resultat d'un fonction ?
-     */
+// 	while sur le resultat d'un fonction ?
+//      */
 
-#ifdef DEBUG
-     printf( "serveur en ecoute\n");
-#endif
+// #ifdef DEBUG
+//      printf( "serveur en ecoute\n");
+// #endif
      
-     n = recvfrom (sockd, buff, 200, 0, NULL, NULL);
+//      n = recvfrom (sockd, buff, 200, 0, NULL, NULL);
      
-     while (msg_bien_forme (buff,n) != 1) {
-       n = recvfrom (sockd, buff, 200, 0, NULL, NULL);
-     }
+//      while (msg_bien_forme (buff,n) != 1) {
+//        n = recvfrom (sockd, buff, 200, 0, NULL, NULL);
+//      }
 
-#ifdef DEBUG
-     printf( "reception d'un message bien formé\n");
-#endif
+// #ifdef DEBUG
+//      printf( "reception d'un message bien formé\n");
+// #endif
 
-     /* acceder au compteur pour chercher si il y a assez de place
-	pour un nouveau
-      */     
-     if (pthread_mutex_lock (&mutex_cpt) < 0) {
-       perror ("lock mutex_cpt seveur");
-       exit (1);
-     }
+//      /* acceder au compteur pour chercher si il y a assez de place
+// 	pour un nouveau
+//       */     
+//      if (pthread_mutex_lock (&mutex_cpt) < 0) {
+//        perror ("lock mutex_cpt seveur");
+//        exit (1);
+//      }
      
-     if (cpt < nb_client) {
+//      if (cpt < nb_client) {
 
-       /* gestion des thread libre ou pas...
-	  le plus simple un tableau (pas efficace ni rien mais bon
-	*/
-       ind = 0;
+//        /* gestion des thread libre ou pas...
+// 	  le plus simple un tableau (pas efficace ni rien mais bon
+// 	*/
+//        ind = 0;
 
-     /* prednre le tableau  */
-     if (pthread_mutex_lock (&mutex_thread) < 0) {
-       perror ("lock mutex_thread seveur");
-       exit (1);
-     }
+//      /* prednre le tableau  */
+//      if (pthread_mutex_lock (&mutex_thread) < 0) {
+//        perror ("lock mutex_thread seveur");
+//        exit (1);
+//      }
 
-     while (free_thread[ind] == 1) {
-       ind ++;
-     }
-     /* le marqué comme pris */
-     free_thread[ind] = 1;
+//      while (free_thread[ind] == 1) {
+//        ind ++;
+//      }
+//      /* le marqué comme pris */
+//      free_thread[ind] = 1;
      
-     /* relacher le tableau  */
-     if (pthread_mutex_unlock (&mutex_thread) < 0) {
-       perror ("unlock mutex_thread seveur");
-       exit (1);
-     }
+//      /* relacher le tableau  */
+//      if (pthread_mutex_unlock (&mutex_thread) < 0) {
+//        perror ("unlock mutex_thread seveur");
+//        exit (1);
+//      }
 
        
-       /* pour pouvoir recuperer l'indice du tableau  */
-       buff [200] = ind;
+//        /* pour pouvoir recuperer l'indice du tableau  */
+//        buff [200] = ind;
        
-       /* creer un nouveau thread  */
-       if ( pthread_create(&pthread[ind], NULL, traitement_client,
-			   buff) == -1) {
-	 perror("pthread_create");
-	 exit (1);
-       }
+//        /* creer un nouveau thread  */
+//        if ( pthread_create(&pthread[ind], NULL, traitement_client,
+// 			   buff) == -1) {
+// 	 perror("pthread_create");
+// 	 exit (1);
+//        }
        
        
-       /* incrementation du compteur de client  */
-       cpt ++;
-#ifdef DEBUG
-       printf ("NBCLIENT : %d\n", cpt);
-#endif
-     }
+//        /* incrementation du compteur de client  */
+//        cpt ++;
+// #ifdef DEBUG
+//        printf ("NBCLIENT : %d\n", cpt);
+// #endif
+//      }
 
-     /* relacher le compteur  */
-     if (pthread_mutex_unlock (&mutex_cpt) < 0) {
-       perror ("unlock mutex_cpt seveur");
-       exit (1);
-     }
+//      /* relacher le compteur  */
+//      if (pthread_mutex_unlock (&mutex_cpt) < 0) {
+//        perror ("unlock mutex_cpt seveur");
+//        exit (1);
+//      }
      
-   }    
+//    }    
    
   /*   variable partagées dans les threads
        -> mettre un mutex_cpt pour la gestion du compteur de clients
