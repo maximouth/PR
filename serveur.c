@@ -26,64 +26,11 @@ int cpt = 0;
 
 /* rajouter un mutex_cpt pour l'utilisation du tableau */
 /* tableau des threads libre  */
-  int *free_thread;
+int *free_thread;
   
-
-
-/* le thread lancé pour le traitement d'un client  */
-void *traitement_client(void *requete) {
-  int ind = 0;
-
-#ifdef DEBUG
-  printf ("dans le thread\n");
-#endif
-
-  /* prendre le compteur  */
-  if (pthread_mutex_lock (&mutex_cpt) < 0) {
-    perror ("unlock mutex_cpt thread");
-    exit (1);
-  }
-
-  /* liberer de la place pour un nouveau client*/
-  cpt --;
-
-  /* gerer le tableau des threads remettre le bon indice a 0 */
-
-  /* prednre le tableau  */
-  if (pthread_mutex_lock (&mutex_thread) < 0) {
-    perror ("unlock mutex_thread thread");
-    exit (1);
-  }
-
-  /*dernier char de requete = indice*/
-  free_thread [ind] = 0;
-
-  /* rendre le tableau  */
-  if (pthread_mutex_unlock (&mutex_thread) < 0) {
-    perror ("unlock mutex_thread thread");
-    exit (1);
-  }
-
-  
-  /* relacher le compteur  */
-  if (pthread_mutex_unlock (&mutex_cpt) < 0) {
-    perror ("unlock mutex_cpt thread");
-    exit (1);
-  }
-
-  return NULL;
-}
-
-
-
-/* test si le message est bien formé ou non  */
-int msg_bien_forme (char *buff, int taille) {
-  if ( (buff[taille-1] == '\n') && (buff[taille-2] == '\n') )
-    return 1;
-  else return 0;
-}
-
-
+/* Prototypes */
+void *traitement_client(void *requete);
+int msg_bien_forme (char *buff, int taille);
 
 
 int main (int argc, char ** argv) {
@@ -112,7 +59,7 @@ int main (int argc, char ** argv) {
 
   /* verification si l'appel au programme est bon  */
   if (argc != 4) {
-    perror ("mauvaise utilisation\n [port] [nbclientmax] [q5]");
+    perror ("mauvaise utilisation :\n%s [port] [nbclientmax] [q5]", argv[0]);
     exit (1);
   }
  
@@ -126,7 +73,7 @@ int main (int argc, char ** argv) {
   free_thread = malloc (nb_client * sizeof (int));
   
   /* creation de la socket  */
-  if ( (sockd = socket (AF_INET, SOCK_DGRAM, 0)) < 0) {
+  if ( (sockd = socket (AF_INET, SOCK_STREAM, 0)) < 0) {
     perror ("socket()");
     exit (1);
   }
@@ -142,6 +89,18 @@ int main (int argc, char ** argv) {
     perror ("bind");
     exit (1);
   }
+
+  /* Listen onto the socket */
+  if (listen(sinf, nb_client) < 0) {
+  	perror ("listen()");
+  	exit(1);
+  }
+
+ #ifdef DEBUG
+  printf( "End server setup.")
+ #endif
+
+    
 
 
    /* traitement re la reception des messages du serveur  */
@@ -280,3 +239,55 @@ int main (int argc, char ** argv) {
 }
 
 
+/* le thread lancé pour le traitement d'un client  */
+void *traitement_client(void *requete) {
+  int ind = 0;
+
+#ifdef DEBUG
+  printf ("dans le thread\n");
+#endif
+
+  /* prendre le compteur  */
+  if (pthread_mutex_lock (&mutex_cpt) < 0) {
+    perror ("unlock mutex_cpt thread");
+    exit (1);
+  }
+
+  /* liberer de la place pour un nouveau client*/
+  cpt --;
+
+  /* gerer le tableau des threads remettre le bon indice a 0 */
+
+  /* prednre le tableau  */
+  if (pthread_mutex_lock (&mutex_thread) < 0) {
+    perror ("unlock mutex_thread thread");
+    exit (1);
+  }
+
+  /*dernier char de requete = indice*/
+  free_thread [ind] = 0;
+
+  /* rendre le tableau  */
+  if (pthread_mutex_unlock (&mutex_thread) < 0) {
+    perror ("unlock mutex_thread thread");
+    exit (1);
+  }
+
+  
+  /* relacher le compteur  */
+  if (pthread_mutex_unlock (&mutex_cpt) < 0) {
+    perror ("unlock mutex_cpt thread");
+    exit (1);
+  }
+
+  return NULL;
+}
+
+
+
+/* test si le message est bien formé ou non  */
+int msg_bien_forme (char *buff, int taille) {
+  if ( (buff[taille-1] == '\n') && (buff[taille-2] == '\n') )
+    return 1;
+  else return 0;
+}
