@@ -2,9 +2,9 @@
 GCC=gcc
 GPP=g++
 
-#FLAGS=-Wall -g -D DEBUG
-FLAGS=-Wall -g 
-GCCFLAGS=  -g
+#FLAGS=-Wall -g -fdiagnostics-color=auto -D DEBUG
+FLAGS=-Wall -g -fdiagnostics-color=auto
+GCCFLAGS=  -g -pthread
 CPPFLAGS= -D DEBUG
 LIBS= -lm
 
@@ -14,7 +14,8 @@ LIBS= -lm
 EXEC = serveur.x
 
 #.h
-INCS = #reseau.h \
+INCS = server.h\
+		client.h
 
 #.c
 SOURCES = serveur.c  
