@@ -1,7 +1,7 @@
 #ifndef CLIENT_H
 #define CLIENT_H
 
-#include "server.h"
+#include "serveur.h"
 
 typedef struct {
 	struct sockaddr_in csinf;

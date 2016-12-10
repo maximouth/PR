@@ -1,10 +1,8 @@
 #include "client.h"
-#include "server.h"
+#include "serveur.h"
 
 #define CL_BUSY 1
 #define CL_FREE 0
-#define DEBUG
-
 
 int main (int argc, char ** argv) {
   /* arguments passé en ligen de commande  */
@@ -13,7 +11,7 @@ int main (int argc, char ** argv) {
   int num_cpt   = 0;
 
   char buffer[BUF_SIZE];
-
+  
   /* descripteur de la socket */
   int sockd;
 
@@ -78,6 +76,9 @@ int main (int argc, char ** argv) {
   fflush(stdout);
 #endif
 
+  
+  printf ("serveur en ecoute\n");
+  
   /* as we're using TCP instead of UDP, the treatment is different */
 
   current = 0;
@@ -94,12 +95,6 @@ int main (int argc, char ** argv) {
     /* Add stdin and sock to rdfs */
     FD_SET(STDIN_FILENO, &rdfs);
     FD_SET(sockd, &rdfs);
-
-    /* Add each client */
-    /* TODO : remove that ? */
-    // for(i=0; i<current; i++) {
-    // 	FD_SET(clients[i].sock, &rdfs);
-    // }
 
     /* Select from rdfs */
     if (select(sockd+1, &rdfs, NULL, NULL, NULL) < 0) {
@@ -141,124 +136,61 @@ int main (int argc, char ** argv) {
 	perror("accept()");
 	exit(1);
       }
-      /* prendre le tableau  */
-      ind = 0;
-      if (pthread_mutex_lock (&mutex_thread) < 0) {
-		perror ("lock mutex_thread seveur");
-		exit (1);
-      }
 
-      while (free_client[ind] == CL_BUSY) {
-	ind ++;
-      }
-      /* le marquer comme pris */
-      free_client[ind] = CL_BUSY;
-     
-      /* relacher le tableau  */
-      if (pthread_mutex_unlock (&mutex_thread) < 0) {
-		perror ("unlock mutex_thread seveur");
-		exit (1);
-      }
-      clients[ind].sock = client_sock;
-      clients[ind].index = ind;
 
-      /* Create pthread associated with the new client */
-      if ( pthread_create(&(clients[ind].thread), NULL, traitement_client,
-			  &(clients[ind])) == -1) {
-	perror("pthread_create");
+      if (pthread_mutex_lock (&mutex_cpt) < 0) {
+	perror ("lock mutex_cpt seveur");
 	exit (1);
       }
+      
+      if (cpt < nb_client) {
+	cpt ++;
 
+	/* client en traitement  */
+	printf ("client reçu \n");
+      
+	/* prendre le tableau  */
+	ind = 0;
+	if (pthread_mutex_lock (&mutex_thread) < 0) {
+	  perror ("lock mutex_thread seveur");
+	  exit (1);
+	}
+
+	while (free_client[ind] == CL_BUSY) {
+	  ind ++;
+	}
+	/* le marquer comme pris */
+	free_client[ind] = CL_BUSY;
+     
+	/* relacher le tableau  */
+	if (pthread_mutex_unlock (&mutex_thread) < 0) {
+	  perror ("unlock mutex_thread seveur");
+	  exit (1);
+	}
+	clients[ind].sock = client_sock;
+	clients[ind].index = ind;
+
+	/* Create pthread associated with the new client */
+	if ( pthread_create(&(clients[ind].thread), NULL, traitement_client,
+			    &(clients[ind])) == -1) {
+	  perror("pthread_create");
+	  exit (1);
+	}
+
+
+      }
+
+      /* relacher le compteur  */
+      if (pthread_mutex_unlock (&mutex_cpt) < 0) {
+	perror ("unlock mutex_cpt seveur");
+	exit (1);
+      }
+      
+
+      
     }
   }
 
-
-  /* traitement re la reception des messages du serveur  */
-  //    while (1) {
-
-  //      /* stocker le message lu dans buff
-  //      	et regarder si buff n-1 et n-2 == \n
-  // 	-> message bien formé
-	
-  // 	si bien formé passer a la suite
-  // 	recommencer
-
-  // 	while sur le resultat d'un fonction ?
-  //      */
-
-  // #ifdef DEBUG
-  //      printf( "serveur en ecoute\n");
-  // #endif
-     
-  //      n = recvfrom (sockd, buff, 200, 0, NULL, NULL);
-     
-  //      while (msg_bien_forme (buff,n) != 1) {
-  //        n = recvfrom (sockd, buff, 200, 0, NULL, NULL);
-  //      }
-
-  // #ifdef DEBUG
-  //      printf( "reception d'un message bien formé\n");
-  // #endif
-
-  //      /* acceder au compteur pour chercher si il y a assez de place
-  // 	pour un nouveau
-  //       */     
-  //      if (pthread_mutex_lock (&mutex_cpt) < 0) {
-  //        perror ("lock mutex_cpt seveur");
-  //        exit (1);
-  //      }
-     
-  //      if (cpt < nb_client) {
-
-  //        /* gestion des thread libre ou pas...
-  // 	  le plus simple un tableau (pas efficace ni rien mais bon
-  // 	*/
-  //        ind = 0;
-
-  //      /* prednre le tableau  */
-  //      if (pthread_mutex_lock (&mutex_thread) < 0) {
-  //        perror ("lock mutex_thread seveur");
-  //        exit (1);
-  //      }
-
-  //      while (free_thread[ind] == 1) {
-  //        ind ++;
-  //      }
-  //      /* le marqué comme pris */
-  //      free_thread[ind] = 1;
-     
-  //      /* relacher le tableau  */
-  //      if (pthread_mutex_unlock (&mutex_thread) < 0) {
-  //        perror ("unlock mutex_thread seveur");
-  //        exit (1);
-  //      }
-
-       
-  //        /* pour pouvoir recuperer l'indice du tableau  */
-  //        buff [200] = ind;
-       
-  //        /* creer un nouveau thread  */
-  //        if ( pthread_create(&pthread[ind], NULL, traitement_client,
-  // 			   buff) == -1) {
-  // 	 perror("pthread_create");
-  // 	 exit (1);
-  //        }
-       
-       
-  //        /* incrementation du compteur de client  */
-  //        cpt ++;
-  // #ifdef DEBUG
-  //        printf ("NBCLIENT : %d\n", cpt);
-  // #endif
-  //      }
-
-  //      /* relacher le compteur  */
-  //      if (pthread_mutex_unlock (&mutex_cpt) < 0) {
-  //        perror ("unlock mutex_cpt seveur");
-  //        exit (1);
-  //      }
-     
-  //    }    
    
   /*   variable partagées dans les threads
        -> mettre un mutex_cpt pour la gestion du compteur de clients
@@ -315,25 +247,60 @@ void *traitement_client(void *client) {
   Client* c = (Client *) client;
   int n;
   char buffer[BUF_SIZE];
-
+  char resp [BUF_SIZE];
+  
 #ifdef DEBUG
   printf ("dans le thread\n");
 #endif
   if ((n = recv(c->sock, buffer, BUF_SIZE -1, 0)) < 1) {
-  	perror("recv()");
-  	exit(1);
+    perror("recv()");
+    exit(1);
   }
-  #ifdef DEBUG
-  	printf("Lu\n");
-  	fflush(stdout);
-  	#endif
+#ifdef DEBUG
+  printf("Lu\n");
+  printf ("requete : %s\n",buffer);
+  fflush(stdout);
+#endif
   if (msg_bien_forme(buffer, n)) {
-  	/* Traitement de la requete */
-  	#ifdef DEBUG
-  	printf("Bien forme\n");
-  	fflush(stdout);
-  	#endif
+    /* Traitement de la requete */
+#ifdef DEBUG
+    printf ("Bien forme\n");
+    printf ("requete : %s\n",buffer);
+    fflush(stdout);
+#endif
   }
+
+
+  /*  
+      lire la requette :
+       -> stocker le nom de fichier a lire
+         --> GET_/nomfichier_XXXXX
+      essayer de l'ouvrir
+       -> si pas possible 404 
+       -> si possible 200 
+      
+       lire type mime du fichier (fonction a coté)
+       et l'afficher
+
+       si 200 (
+       while((c = fgetc(fp)) != EOF)  // tant que l'on est pas arrivé à la fin du fichier
+       if(send(c->sock, c, 1, 0) < 0) {
+       perror("send() fichier");
+       exit(1);
+       }
+       )
+       
+      
+   */
+
+  if(send(c->sock,"ttt",3
+	  , 0) < 0) {
+      perror("send()");
+      exit(1);
+    }
+  
+
+  /* fin du thread / connexion liberer l'espace pour les nouveau client  */
 
   /* prednre le tableau  */
   if (pthread_mutex_lock (&mutex_thread) < 0) {
@@ -343,16 +310,36 @@ void *traitement_client(void *client) {
 
   /*dernier char de requete = indice*/
   free_client [c->index] = CL_FREE;
-  #ifdef DEBUG
-  	printf("mutex\n");
-  	fflush(stdout);
-  #endif
+#ifdef DEBUG
+  printf("mutex\n");
+  fflush(stdout);
+#endif
 
   /* rendre le tableau  */
   if (pthread_mutex_unlock (&mutex_thread) < 0) {
     perror ("unlock mutex_thread thread");
     exit (1);
   }
+
+  
+  /* prednre le cpt  */
+  if (pthread_mutex_lock (&mutex_cpt) < 0) {
+    perror ("unlock mutex_cpt thread");
+    exit (1);
+  }
+
+  /* free space for one next client  */
+  cpt --;
+
+  /* rendre le cpt  */
+  if (pthread_mutex_unlock (&mutex_cpt) < 0) {
+    perror ("unlock mutex_cpt thread");
+    exit (1);
+  }
+
+  /* fermer la socket pour la reutiliser  */
+  close (c->sock);
+  
   return NULL;
 }
 
@@ -361,11 +348,11 @@ void *traitement_client(void *client) {
 /* test si le message est bien formé ou non  */
 int msg_bien_forme (char *buff, int taille) {
   if ( ((buff[taille-1] == '\n') && (buff[taille-2] == '\n')) || 
-  	/* Ends with \n\n */
-  	((buff[taille-1] == '\n') && (buff[taille-2] == '\r') && 
-  		(buff[taille-3] == '\n') && (buff[taille-4] == '\r'))
-  		/* Ends with \r\n\r\n */
-  	)
+       /* Ends with \n\n */
+       ((buff[taille-1] == '\n') && (buff[taille-2] == '\r') && 
+	(buff[taille-3] == '\n') && (buff[taille-4] == '\r'))
+       /* Ends with \r\n\r\n */
+       )
     return 1;
   else return 0;
 }

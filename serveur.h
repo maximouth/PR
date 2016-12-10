@@ -20,13 +20,18 @@
 
 
 /* defines */
-#define BUF_SIZE 201
+#define BUF_SIZE 701
 
 /* mutex pour proteger le compteur de client  */
 static pthread_mutex_t mutex_thread = PTHREAD_MUTEX_INITIALIZER;
 
-/* nombre de client en simultanÃ© */
+/* mutex pour proteger le compteur de client  */
+static pthread_mutex_t mutex_cpt = PTHREAD_MUTEX_INITIALIZER;
+
+
+/* nombre de client en simultané */
 int cpt = 0;
+
 
 int *free_client;
   
