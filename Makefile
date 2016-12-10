@@ -15,10 +15,12 @@ EXEC = serveur.x
 
 #.h
 INCS = serveur.h\
-       client.h
+       client.h \
+       parse.h
 
 #.c
-SOURCES = serveur.c  
+SOURCES = serveur.c \
+	  parse.c
 #reseau.c \
 
 OBJS = $(SOURCES:.c=.o)

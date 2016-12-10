@@ -1,8 +1,13 @@
+#include <fcntl.h>
+
 #include "client.h"
 #include "serveur.h"
+#include "parse.h"
 
 #define CL_BUSY 1
 #define CL_FREE 0
+
+
 
 int main (int argc, char ** argv) {
   /* arguments passé en ligen de commande  */
@@ -89,7 +94,7 @@ int main (int argc, char ** argv) {
     printf( "Here\n");
     fflush(stdout);
 #endif
-    int i = 0;
+
     FD_ZERO(&rdfs);
 
     /* Add stdin and sock to rdfs */
@@ -247,7 +252,12 @@ void *traitement_client(void *client) {
   Client* c = (Client *) client;
   int n;
   char buffer[BUF_SIZE];
-  char resp [BUF_SIZE];
+  char *lu;
+  char *fichier;
+  int fd = 0;
+  char *ext;
+  char ret[100];
+
   
 #ifdef DEBUG
   printf ("dans le thread\n");
@@ -270,7 +280,72 @@ void *traitement_client(void *client) {
 #endif
   }
 
+  lu = strtok (buffer, "/");
 
+  if ( (strcmp (lu, "GET ")) != 0) {
+    close (c->sock);
+    return NULL;
+  }
+
+  fichier = strtok (NULL, " ");  
+#ifdef DEBUG
+  printf ("ficher : %s\n", fichier);
+#endif
+
+
+  /* test if FIle exist */
+  if ( (fd = open (fichier, O_RDONLY)) == -1) {
+    lu = "HTTP/1.1 404 Not Found\nContent-Type: text/html\n\n<html><body>\n\n<h1>404</h1>\n<h2>Not Found</h2>\n</body></html>";
+    if(send(c->sock,lu, strlen (lu)
+	    , 0) < 0) {
+      perror("send()");
+      exit(1);
+    }
+
+#ifdef DEBUG
+    printf ("ficher : %s pas ouvrable\n", fichier);
+#endif
+    
+    close (c->sock);
+    return NULL;
+  }
+
+  /* If file exist  */
+  lu ="HTTP/1.1 200 OK\nContent-Type: c";
+  if(send(c->sock,lu, strlen (lu)
+	  , 0) < 0) {
+    perror("send()");
+    exit(1);
+    }
+
+  /* search file extension in mime type   */
+  strtok (fichier, ".");
+  ext = strtok (NULL, ".");
+
+#ifdef DEBUG
+    printf ("ext : %s\n", ext);
+    // printf ("type_mime %s\n", type_mime (ext));
+#endif
+
+    /* recup le type mime */
+    type_mime (ext, ret);
+    printf ("type mime : %s\n", ret);
+    ////********  ICCII ******/
+    if(send(c->sock, ret, strlen (ext)
+	    , 0) < 0) {
+      perror("send()");
+      exit(1);
+  }
+
+    while (read (fd, buffer, BUF_SIZE) != 0) {
+      if(send(c->sock,buffer, strlen (buffer)
+	      , 0) < 0) {
+	perror("send()");
+	exit(1);
+      }
+      
+    }
+  
   /*  
       lire la requette :
        -> stocker le nom de fichier a lire
@@ -291,14 +366,7 @@ void *traitement_client(void *client) {
        )
        
       
-   */
-
-  if(send(c->sock,"ttt",3
-	  , 0) < 0) {
-      perror("send()");
-      exit(1);
-    }
-  
+   */  
 
   /* fin du thread / connexion liberer l'espace pour les nouveau client  */
 
