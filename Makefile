@@ -14,13 +14,15 @@ LIBS= -lm
 EXEC = serveur.x
 
 #.h
-INCS = serveur.h\
+INCS = serveur.h \
        client.h \
-       parse.h
+       parse.h \
+       logger.h
 
 #.c
 SOURCES = serveur.c \
-	  parse.c
+	  parse.c \
+	  logger.c
 #reseau.c \
 
 OBJS = $(SOURCES:.c=.o)
