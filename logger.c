@@ -70,6 +70,10 @@ void WriteLog(Loginfo l, char* filename){
 		perror("unlock mutex_logger");
 		exit(1);
 	}
+
+	free(line);
+	line = NULL;
+	cur = NULL;
 }
 
 /* Set client address field in Loginfo *
