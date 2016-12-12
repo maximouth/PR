@@ -142,6 +142,11 @@ int main (int argc, char ** argv) {
 	exit(1);
       }
 
+#ifdef DEBUG
+      printf("Client address : %lu\n",csin.sin_addr.s_addr);
+      printf("Client address : %s\n", inet_ntoa(*(struct in_addr *) &csin)); 
+#endif
+
 
       if (pthread_mutex_lock (&mutex_cpt) < 0) {
 	perror ("lock mutex_cpt seveur");
