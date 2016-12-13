@@ -128,8 +128,7 @@ void type_mime (char *ext, char* ret) {
 
 	/*****    ERREUT SEGMENTATION IICIII *****/
 	/*****           POURQUOI?                    *****/
-	
-	ext_lu[0] = line [i];
+	ext_lu[i] = line [i];
 #ifdef DEBUG
 	printf ("ext_lu[j] : %c\n", ext_lu[j]);
 	fflush(stdout);
