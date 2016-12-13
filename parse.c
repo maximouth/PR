@@ -7,7 +7,7 @@
 
 
 void read_line (int fd, char *ret) {
-  char *val = malloc (100 * sizeof (char));
+  char *val = malloc (150 * sizeof (char));
   int i = 0;
 
   printf ("dans le read line");
@@ -26,7 +26,7 @@ void read_line (int fd, char *ret) {
     read (fd, val, 1);
   }
 
-  printf ("fin lecture\n");
+  printf ("fin lecture, i: %d\n", i);
   fflush(stdout);
   
   
@@ -40,8 +40,8 @@ void type_mime (char *ext, char* ret) {
   int fd = 0;
   char line [80] = "a";
   int i = 0, j = 0;
-  char *type   =  malloc (100 * sizeof (char));
-  char *ext_lu =  malloc (100 * sizeof (char));
+  char *type   =  malloc (150 * sizeof (char));
+  char *ext_lu =  malloc (150 * sizeof (char));
   
   if ( (fd = open ("/etc/mime.types", O_RDONLY)) == -1) {
     perror ("open mime");
@@ -50,11 +50,11 @@ void type_mime (char *ext, char* ret) {
 
   printf ("type mime\n");
 
-
-
   
   /* tant que pas fin du fichier  */
   while (line[0] != '\0') {
+
+  debut:
     
     i = 0;
     j = 0;
@@ -65,7 +65,7 @@ void type_mime (char *ext, char* ret) {
 
     /* jeter les lignes mal formées */
     if ( (line [0] == '#') || (line [0] == '\n') ) {
-      continue;
+      goto debut;
     }
 
 #ifdef DEBUG
@@ -73,7 +73,13 @@ void type_mime (char *ext, char* ret) {
 #endif    
 
     /* stocker la valeur du type (avant espace) */
-    while ( (line[i] != '\t') && (line[i] != ' ') ) {
+    while ( (line[i] != '\t') && (line[i] != ' ')  ) {
+
+      /* si pas d'extensions assosiées passer au cas suivant  */
+      if (line [i] == '\n') {
+	goto debut;
+      }
+
       type[i] = line [i];
       i++;
     }
@@ -85,6 +91,12 @@ void type_mime (char *ext, char* ret) {
 #endif    
 
 
+    /* si pas d'extensions assosiées passer au cas suivant  */
+    if (line [i] == '\n') {
+      goto debut;
+    }
+
+    
     /* jeter les espaces avant la description */
     while ( (line[i] == '\t') || (line[i] == ' ') ) {
       i++;
@@ -95,65 +107,46 @@ void type_mime (char *ext, char* ret) {
     fflush(stdout);
 #endif    
 
-    
-    /* si pas d'extensions assosiées passer au cas suivant  */
-    if (line [i] == '\n') {
-      continue;
-    }
+    /*  chercher les extensions si il y en a  
+	entre dans le while seulement si il y a au moins une ext
+    */
+    while ( (line[i] != '\n') && (line[i] != '\0') ) {
 
-#ifdef DEBUG
-    printf ("if\n");
-    fflush(stdout);
-#endif    
-
-    
-    /* si il y a une extension  */
-    j = 0;
-    while ( (line[i] != '\n') && (line[i] != ' ') ) {
-#ifdef DEBUG
-      printf ("i : %d, j : %d, linei : %c\n", i ,j, line[i]);
-      fflush(stdout);
-#endif    
-      //      ext_lu[j] = line [i];
-      i++; j++;
-    }
-    ext_lu [j] = '\0';
-
-#ifdef DEBUG
-    printf ("ext1 %s\n", ext_lu);
-    fflush(stdout);
-#endif    
-
-    
-    
-    /* si la même que celle q'uon cherche  */
-    if (strcmp (ext_lu, ext) == 0) {
-      /* renvoyer le type de l'extension trouvée  */
-      for (j = 0; j < strlen (type); j++) {
-	ret[j] = type [j];
+      /* espace entre les extensions  */
+      if (line[i] == ' ') {
+	i++;
       }
-#ifdef DEBUG
-      printf ("trouvé 1\n");
-#endif    
 
-      /* sortir de la fonction */
-      return;
-    }
-
-    /* regarder si il y a une autre extension ou pas */
-    if (line [i] != '\n') {
       j = 0;
-      while (line[i] != '\n') {
-	ext_lu[j] = line [i];
-	i++; j++;
-      }
-      ext_lu[j] = '\0';
-
+      /* tant qu'il y a un char a lire dans l'ext  */
+      while ( (line[i] != '\n') && (line[i] != ' ') ) {
+	/* rajoute le char lu dans ext_lu  */
 #ifdef DEBUG
-      printf ("ext2 %s\n", ext_lu);
-#endif    
+	printf ("i : %d, j : %d, linei : %c\n", i ,j, line[i+1]);
+	fflush(stdout);
+#endif
 
-      
+	/*****    ERREUT SEGMENTATION IICIII *****/
+	/*****           POURQUOI?                    *****/
+	
+	ext_lu[0] = line [i];
+#ifdef DEBUG
+	printf ("ext_lu[j] : %c\n", ext_lu[j]);
+	fflush(stdout);
+#endif
+	i++; j++;
+#ifdef DEBUG
+	printf ("i : %d, j : %d, linei : %c\n", i ,j, line[i+1]);
+	fflush(stdout);
+#endif
+      }
+      ext_lu [j] = '\0';
+      /* comparer l'ext lu avec celle recherchée */
+#ifdef DEBUG
+      printf ("ext1 %s\n", ext_lu);
+      fflush(stdout);
+#endif
+    
       /* si la même que celle q'uon cherche  */
       if (strcmp (ext_lu, ext) == 0) {
 	/* renvoyer le type de l'extension trouvée  */
@@ -161,21 +154,19 @@ void type_mime (char *ext, char* ret) {
 	  ret[j] = type [j];
 	}
 #ifdef DEBUG
-	printf ("trouvé 2\n");
-#endif    
-
-	/* sortir de la fonction */
+	printf ("trouvé 1\n");
+#endif
 	return;
       }
-      
-      
-    }
+
     
+    }
+
     read_line (fd, line);    
   }
   return;
 }
-  
+
   
 /*   /\* */
 /*      80 + 1 + 74 + 73 + 67 + 72 + 73 + 77 + 65 + 1 + 13 + 1 + 59;; */
