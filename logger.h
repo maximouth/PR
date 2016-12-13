@@ -51,7 +51,7 @@ void WriteLog(Loginfo l, char* filename);
 void SetLogAddr(Loginfo l, const struct in_addr *csin);
 void SetLogTime(Loginfo l);
 void SetLogPid(Loginfo l);
-void SetLogTid(Loginfo l, int thid);
+void SetLogTid(Loginfo l);
 void SetLogLine(Loginfo l, const char* line);
 void SetLogSret(Loginfo l, const unsigned int r);
 void SetLogRsize(Loginfo l, const unsigned int s);

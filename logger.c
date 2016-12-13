@@ -119,7 +119,7 @@ void SetLogPid(Loginfo l) {
 
 /* Set thread id field in Loginfo *
  * This function is thread safe */
-void SetLogTid(Loginfo l, int thid) {
+void SetLogTid(Loginfo l) {
 	snprintf(l.thid, PID_SIZE, "%d\0", (int) pthread_self());
 }
 
