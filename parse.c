@@ -122,22 +122,18 @@ void type_mime (char *ext, char* ret) {
       while ( (line[i] != '\n') && (line[i] != ' ') ) {
 	/* rajoute le char lu dans ext_lu  */
 #ifdef DEBUG
-	printf ("i : %d, j : %d, linei : %c\n", i ,j, line[i+1]);
+	printf ("i : %d, j : %d, linei : %c\n", i ,j, line[i]);
 	fflush(stdout);
 #endif
 
 	/*****    ERREUT SEGMENTATION IICIII *****/
 	/*****           POURQUOI?                    *****/
-	ext_lu[i] = line [i];
+	ext_lu[j] = line [i];
 #ifdef DEBUG
 	printf ("ext_lu[j] : %c\n", ext_lu[j]);
 	fflush(stdout);
 #endif
 	i++; j++;
-#ifdef DEBUG
-	printf ("i : %d, j : %d, linei : %c\n", i ,j, line[i+1]);
-	fflush(stdout);
-#endif
       }
       ext_lu [j] = '\0';
       /* comparer l'ext lu avec celle recherchée */

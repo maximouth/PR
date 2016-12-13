@@ -103,7 +103,7 @@ void SetLogTime(Loginfo l) {
 		exit(1);
 	}
 	/* fill time field in Loginfo struct */
-	strncpy(l.time, ctime(&t));
+	strncpy(l.time, ctime(&t), strlen (ctime(&t)));
 	/* unlock mutex */
 	if(pthread_mutex_unlock(&mutex_loginfo) < 0) {
 		perror("unlock mutex_loginfo");
@@ -114,13 +114,13 @@ void SetLogTime(Loginfo l) {
 /* Set server PID field in Loginfo *
  * This function is thread safe */
 void SetLogPid(Loginfo l) {
-	snprintf(l.spid, PID_SIZE, "%d\0", (int) getpid());
+	snprintf(l.spid, PID_SIZE, "%d\n", (int) getpid());
 }
 
 /* Set thread id field in Loginfo *
  * This function is thread safe */
 void SetLogTid(Loginfo l) {
-	snprintf(l.thid, PID_SIZE, "%d\0", (int) pthread_self());
+	snprintf(l.thid, PID_SIZE, "%d\n", (int) pthread_self());
 }
 
 /* Set line field in Loginfo *
@@ -132,16 +132,16 @@ void SetLogLine(Loginfo l, const char* line) {
 /* Set return code field in Loginfo *
  * This function is thread safe */
 void SetLogSret(Loginfo l, const unsigned int r) {
-	snprintf(l.sret, RET_SIZE, "%u\0", r);
+	snprintf(l.sret, RET_SIZE, "%u\n", r);
 }
 
 /* Set request size field in Loginfo *
  * This function is thread safe */
 void SetLogRsize(Loginfo l, const unsigned int s) {
 	if ( s < ONEKILO) /* < 1ko */
-		snprintf(l.rsize, SIZ_SIZE, "%u o\0", s);
+		snprintf(l.rsize, SIZ_SIZE, "%u o\n", s);
 	else if (s < ONEMEGA) /* < 1Mo */
-		snprintf(l.rsize, SIZ_SIZE, "%4.2f Mo\0", (float)s/ONEKILO);
+		snprintf(l.rsize, SIZ_SIZE, "%4.2f Mo\n", (float)s/ONEKILO);
 	else
-		snprintf(l.rsize, SIZ_SIZE, "%4.2f Go\0", (float)s/ONEMEGA);
+		snprintf(l.rsize, SIZ_SIZE, "%4.2f Go\n", (float)s/ONEMEGA);
 }

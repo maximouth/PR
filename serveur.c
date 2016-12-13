@@ -262,15 +262,15 @@ void *traitement_client(void *client) {
     perror("recv()");
     exit(1);
   }
-  SetLogTime(c.loginfo);
-  SetLogTid(c.loginfo);
+  SetLogTime(c->loginfo);
+  SetLogTid(c->loginfo);
 #ifdef DEBUG
   printf("Lu\n");
   printf ("requete : %s\n",buffer);
   fflush(stdout);
 #endif
   if (msg_bien_forme(buffer, n)) {
-  	SetLogLine(strtok(buffer, "\n"));
+    SetLogLine(c->loginfo, strtok(buffer, "\n"));
     /* Traitement de la requete */
 #ifdef DEBUG
     printf ("Bien forme\n");

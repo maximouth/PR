@@ -1,11 +1,18 @@
 #ifndef LOGGER_H
 #define LOGGER_H
 
+#include <stdlib.h>
+#include <stdio.h>
+#include <fcntl.h>
 #include <time.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include <pthread.h>
 #include <string.h>
+
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
 /* Path to logfile */
 #define LOGFILENAME "/tmp/http3000038.log"
