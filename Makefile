@@ -20,7 +20,7 @@ INCS = serveur.h \
        logger.h
 
 #.c
-SOURCES = serveur.c \
+SOURCES = serveur.c\
 	  parse.c \
 	  logger.c
 

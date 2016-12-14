@@ -88,7 +88,7 @@ int main (int argc, char ** argv) {
   stop_flag = 1;
 
   while(stop_flag) {
-  	/* Clear rdfs */
+    /* Clear rdfs */
     FD_ZERO(&rdfs);
 
     /* Add stdin and sockd to rdfs */
@@ -129,9 +129,10 @@ int main (int argc, char ** argv) {
       memset ((char*) &sinf, 0, sizeof(sinf));
       /* Accept first connection onto socket */
       if ((client_sock = accept (sockd, (struct sockaddr *) &csin, &sinsize)) < 0) {
-		perror("accept()");
-		exit(1);
+	perror("accept()");
+	exit(1);
       }
+      printf("\tBIENSRU KON PUISS ELE VOR RAPIDEMEENT EFFICACEMENT : %d\n", client_sock);
 
 #ifdef DEBUG
       printf("Connection attempt\n");
@@ -139,52 +140,57 @@ int main (int argc, char ** argv) {
       fflush(stdout);
 #endif
       if (pthread_mutex_lock (&mutex_cpt) < 0) {
-		perror ("lock mutex_cpt seveur");
-		exit (1);
+	perror ("lock mutex_cpt seveur");
+	exit (1);
       }
       
       if (cpt < nb_client) {
-		cpt ++;
+	cpt ++;
 
-		/* client en traitement  */
-		printf ("client reçu \n");
+	/* client en traitement  */
+	printf ("client reçu \n");
       
-		/* prendre le tableau  */
-		ind = 0;
-		if (pthread_mutex_lock (&mutex_thread) < 0) {
-	  		perror ("lock mutex_thread seveur");
-	  		exit (1);
-		}
+	/* prendre le tableau  */
+	ind = 0;
+	if (pthread_mutex_lock (&mutex_thread) < 0) {
+	  perror ("lock mutex_thread seveur");
+	  exit (1);
+	}
 
-		while (free_client[ind] == CL_BUSY) {
-	  		ind ++;
-		}
-		/* le marquer comme pris */
-		free_client[ind] = CL_BUSY;
+	while (free_client[ind] == CL_BUSY) {
+	  ind ++;
+	}
+	/* le marquer comme pris */
+	free_client[ind] = CL_BUSY;
      
-		/* relacher le tableau  */
-		if (pthread_mutex_unlock (&mutex_thread) < 0) {
-	  		perror ("unlock mutex_thread seveur");
-	  		exit (1);
-		}
-		clients[ind].sock = client_sock;
-		clients[ind].index = ind;
-		SetLogAddr(clients[ind].loginfo, &csin.sin_addr);
-		SetLogPid(clients[ind].loginfo);
-
-		/* Create pthread associated with the new client */
-		if ( pthread_create(&(clients[ind].thread), NULL, traitement_client,
+	/* relacher le tableau  */
+	if (pthread_mutex_unlock (&mutex_thread) < 0) {
+	  perror ("unlock mutex_thread seveur");
+	  exit (1);
+	}
+	clients[ind].sock = client_sock;
+	clients[ind].index = ind;
+	SetLogAddr(clients[ind].loginfo, &csin.sin_addr);
+	printf("ADDRESS : %s\n",clients[ind].loginfo->caddr);
+	printf("ADDRESS : %d\n",clients[ind].index);
+	fflush(stdout);
+	SetLogPid(clients[ind].loginfo);
+	printf("PID TAMERE : %s\n",clients[ind].loginfo->spid);
+	printf("PID : %d\n", (int) getpid());
+	
+	/* Create pthread associated with the new client */
+	if ( pthread_create(&(clients[ind].thread), NULL, traitement_client,
 			    &(clients[ind])) == -1) {
-	  		perror("pthread_create");
-	  		exit (1);
-		}
+	  perror("pthread_create");
+	  exit (1);
+	}
 
       }
 
       /* relacher le compteur  */
       if (pthread_mutex_unlock (&mutex_cpt) < 0) {
-		perror ("unlock mutex_cpt seveur");
-		exit (1);
+	perror ("unlock mutex_cpt seveur");
+	exit (1);
       }
       
 
@@ -258,19 +264,21 @@ void *traitement_client(void *client) {
 #ifdef DEBUG
   printf ("dans le thread\n");
 #endif
+  printf("C MA CSOK : %u\n", c->sock);
   if ((n = recv(c->sock, buffer, BUF_SIZE -1, 0)) < 1) {
-    perror("recv()");
+    perror("recv()ma bite");
     exit(1);
   }
   SetLogTime(c->loginfo);
   SetLogTid(c->loginfo);
+  
 #ifdef DEBUG
   printf("Lu\n");
   printf ("requete : %s\n",buffer);
   fflush(stdout);
 #endif
   if (msg_bien_forme(buffer, n)) {
-    SetLogLine(c->loginfo, strtok(buffer, "\n"));
+    SetLogLine(c->loginfo, strtok(buffer, "\n")); 
     /* Traitement de la requete */
 #ifdef DEBUG
     printf ("Bien forme\n");
@@ -315,57 +323,57 @@ void *traitement_client(void *client) {
 	  , 0) < 0) {
     perror("send()");
     exit(1);
-    }
+  }
 
   /* search file extension in mime type   */
   strtok (fichier, ".");
   ext = strtok (NULL, ".");
 
 #ifdef DEBUG
-    printf ("ext : %s\n", ext);
-    // printf ("type_mime %s\n", type_mime (ext));
+  printf ("ext : %s\n", ext);
+  // printf ("type_mime %s\n", type_mime (ext));
 #endif
 
-    /* recup le type mime */
-    type_mime (ext, ret);
-    printf ("type mime : %s\n", ret);
-    ////********  ICCII ******/
-    if(send(c->sock, ret, strlen (ext)
+  /* recup le type mime */
+  type_mime (ext, ret);
+  printf ("type mime : %s\n", ret);
+  ////********  ICCII ******/
+  if(send(c->sock, ret, strlen (ext)
+	  , 0) < 0) {
+    perror("send()");
+    exit(1);
+  }
+
+  while (read (fd, buffer, BUF_SIZE) != 0) {
+    if(send(c->sock,buffer, strlen (buffer)
 	    , 0) < 0) {
       perror("send()");
       exit(1);
-  }
-
-    while (read (fd, buffer, BUF_SIZE) != 0) {
-      if(send(c->sock,buffer, strlen (buffer)
-	      , 0) < 0) {
-	perror("send()");
-	exit(1);
-      }
-      
     }
+      
+  }
   
   /*  
       lire la requette :
-       -> stocker le nom de fichier a lire
-         --> GET_/nomfichier_XXXXX
+      -> stocker le nom de fichier a lire
+      --> GET_/nomfichier_XXXXX
       essayer de l'ouvrir
-       -> si pas possible 404 
-       -> si possible 200 
+      -> si pas possible 404 
+      -> si possible 200 
       
-       lire type mime du fichier (fonction a coté)
-       et l'afficher
+      lire type mime du fichier (fonction a coté)
+      et l'afficher
 
-       si 200 (
-       while((c = fgetc(fp)) != EOF)  // tant que l'on est pas arrivé à la fin du fichier
-       if(send(c->sock, c, 1, 0) < 0) {
-       perror("send() fichier");
-       exit(1);
-       }
-       )
+      si 200 (
+      while((c = fgetc(fp)) != EOF)  // tant que l'on est pas arrivé à la fin du fichier
+      if(send(c->sock, c, 1, 0) < 0) {
+      perror("send() fichier");
+      exit(1);
+      }
+      )
        
       
-   */  
+  */  
 
   /* fin du thread / connexion liberer l'espace pour les nouveau client  */
 
@@ -406,7 +414,8 @@ void *traitement_client(void *client) {
 
   /* fermer la socket pour la reutiliser  */
   close (c->sock);
-  
+  //  WriteLog(c->loginfo, NULL);
+
   return NULL;
 }
 

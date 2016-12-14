@@ -22,7 +22,7 @@
  * to avoid problems */
 #define ADD_SIZE 30 /* address max size */
 #define TIM_SIZE 60 /* time max size */
-#define PID_SIZE 10  /* PID/ThreadID max size */
+#define PID_SIZE 15  /* PID/ThreadID max size */ 
 #define LIN_SIZE 150 /* first line of request max size */
 #define RET_SIZE 4  /* return code max size */
 #define SIZ_SIZE 20 /* request size max size */
@@ -51,16 +51,16 @@ typedef struct {
 
 /* Write an entry in logfile *
  * This function is thread safe */
-void WriteLog(Loginfo l, char* filename);
+void WriteLog(Loginfo *l, char* filename);
 
 /* Functions to set Loginfo struct fields. *
  * Those functions are thread safe */
-void SetLogAddr(Loginfo l, const struct in_addr *csin);
-void SetLogTime(Loginfo l);
-void SetLogPid(Loginfo l);
-void SetLogTid(Loginfo l);
-void SetLogLine(Loginfo l, const char* line);
-void SetLogSret(Loginfo l, const unsigned int r);
-void SetLogRsize(Loginfo l, const unsigned int s);
+void SetLogAddr(Loginfo *l, const struct in_addr *csin);
+void SetLogTime(Loginfo *l);
+void SetLogPid(Loginfo *l);
+void SetLogTid(Loginfo *l);
+void SetLogLine(Loginfo *l, const char* line);
+void SetLogSret(Loginfo *l, const unsigned int r);
+void SetLogRsize(Loginfo *l, const unsigned int s);
 
 #endif

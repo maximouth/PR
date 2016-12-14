@@ -10,8 +10,9 @@ void read_line (int fd, char *ret) {
   char *val = malloc (150 * sizeof (char));
   int i = 0;
 
-  printf ("dans le read line");
-  
+#ifdef DEBUG
+  printf ("dans le read line\n");
+#endif
   if (read (fd, val, 1) == 0) {
     printf ("return");
     ret[0] = '\0';;
@@ -20,18 +21,21 @@ void read_line (int fd, char *ret) {
   
   while ( (val[0] != '\n') && (val[0] != '\0') )  {
     ret [i] = val[0];
+#ifdef DEBUG
     printf ("lu : %c\n",val[0]);
+#endif
     fflush(stdout);
     i++;
     read (fd, val, 1);
   }
-
+#ifdef DEBUG
   printf ("fin lecture, i: %d\n", i);
   fflush(stdout);
-  
-  
+#endif
+
   ret [i]   = '\n';
   ret [i+1] = '\0';
+
   return;
 }
 
@@ -58,13 +62,24 @@ void type_mime (char *ext, char* ret) {
     
     i = 0;
     j = 0;
-    
+#ifdef DEBUG
+    printf ("avant read line\n");
+    fflush(stdout);
+#endif    
     /* lire premiere ligne  */
     read_line (fd, line);
+#ifdef DEBUG
+    printf ("apres read line\n");
+    fflush(stdout);
+#endif    
 
 
     /* jeter les lignes mal formées */
     if ( (line [0] == '#') || (line [0] == '\n') ) {
+#ifdef DEBUG
+    printf ("goto2\n");
+    fflush(stdout);
+#endif    
       goto debut;
     }
 
@@ -77,6 +92,10 @@ void type_mime (char *ext, char* ret) {
 
       /* si pas d'extensions assosiées passer au cas suivant  */
       if (line [i] == '\n') {
+#ifdef DEBUG
+    printf ("goto1\n");
+    fflush(stdout);
+#endif    
 	goto debut;
       }
 
@@ -93,6 +112,10 @@ void type_mime (char *ext, char* ret) {
 
     /* si pas d'extensions assosiées passer au cas suivant  */
     if (line [i] == '\n') {
+#ifdef DEBUG
+    printf ("goto\n");
+    fflush(stdout);
+#endif    
       goto debut;
     }
 
