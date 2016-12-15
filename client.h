@@ -9,7 +9,7 @@ typedef struct {
 	int sock;
 	pthread_t thread;
 	int index;
-        Loginfo *loginfo;
+    Loginfo loginfo;
 } Client;
 
 #endif

@@ -32,12 +32,6 @@
 #define ONEMEGA (int)1024*1024 /*size of a Mo */
 #define ONEGIGA (int)1024*1024*1024 /*size of a Go */
 
-/* Mutex to protect logfile access */
-static pthread_mutex_t mutex_logger = PTHREAD_MUTEX_INITIALIZER;
-
-/* 2nd mutex to fill struct, as some fct arent threadsafe */
-static pthread_mutex_t mutex_loginfo = PTHREAD_MUTEX_INITIALIZER;
-
 /* Structure containing all information needed in logs */
 typedef struct {
 	char caddr[ADD_SIZE]; /* client information */

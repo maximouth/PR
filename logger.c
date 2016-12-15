@@ -1,5 +1,11 @@
 #include "logger.h"
 
+/* Mutex to protect logfile access */
+static pthread_mutex_t mutex_logger = PTHREAD_MUTEX_INITIALIZER;
+
+/* 2nd mutex to fill struct, as some fct arent threadsafe */
+static pthread_mutex_t mutex_loginfo = PTHREAD_MUTEX_INITIALIZER;
+
 /* Write loginfo into filename *
  * This function is thread safe */
 void WriteLog(Loginfo *l, char* filename){
@@ -14,56 +20,21 @@ void WriteLog(Loginfo *l, char* filename){
 		perror("malloc() line");
 		exit(1);
 	}
-	cur = line;
-	/******
 
-	      strcat ici !!!
-
-        *******/
-	
-	/* write caddr field into the line */
-	strncpy(cur, l->caddr, ADD_SIZE);
-	printf("LINE : %s\n",line);
-	printf("lcaddr : %s\n",l->caddr);
-	fflush(stdout);
-	/* update writing position */
-	cur = strchr(cur, (int)'\0');
-	/* appends a space */
-	strncpy(cur, " ",1);
-	/* update writing position */
-	cur++;
-	
-	strncpy(cur, l->time, TIM_SIZE);
-	cur = strchr(cur, (int)'\n');
-	strncpy(cur, " ",1);
-	cur++;
-	
-	strncpy(cur, l->spid, PID_SIZE);
-	cur = strchr(cur, (int)'\0');
-	printf("PID logs : %s\n", l->spid);
-	printf("LINE APRES PID : %s\n", line);
-	strncpy(cur, " ",1);
-	cur++;
-	
-	strncpy(cur, l->thid, PID_SIZE);
-	cur = strchr(cur, (int)'\0');
-	strncpy(cur, " ",1);
-	cur++;
-	
-	strncpy(cur, l->line, LIN_SIZE);
-	cur = strchr(cur, (int)'\0');
-	strncpy(cur, " ",1);
-	cur++;
-	/*
-	strncpy(cur, l->sret, RET_SIZE);
-	cur = strchr(cur, (int)'\0');
-	strncpy(cur, " ",1);
-	cur++;
-	strncpy(cur, l->rsize, SIZ_SIZE);
-	cur = strchr(cur, (int)'\0');
-	*/
-	strncpy(cur, "\n", 2);
-	
+	/* Copy all information contained in loginfo struct
+	 * to output it in logfile */
+	strncat(line, l->caddr, ADD_SIZE);
+	strncat(line, l->time, TIM_SIZE);
+	/* Remove '\n' char from
+	 * default formatted time string */
+	cur = strchr(l->time, (int)'\n');
+	strncpy(cur, "", 1);
+	strncat(line, l->spid, PID_SIZE);
+	strncat(line, l->thid, PID_SIZE);
+	strncat(line, l->line, LIN_SIZE);
+	strncat(line, l->sret, LIN_SIZE);
+	strncat(line, l->rsize, SIZ_SIZE);
+	strcat(line, "\n");
 
 	/* Lock to avoid thread problems */
 	if (pthread_mutex_lock (&mutex_logger) < 0) {
@@ -92,13 +63,7 @@ void WriteLog(Loginfo *l, char* filename){
 	}
 
 	free(line);
-	line = NULL;
-	cur = NULL;
 }
-
-
-/*   SETLOG ADDR Fait le seg fault      */
-
 
 /* Set client address field in Loginfo *
  * This function is thread safe */
@@ -109,8 +74,14 @@ void SetLogAddr(Loginfo *l, const struct in_addr *csin) {
 		exit(1);
 	}
 	/* fill caddr field in Loginfo struct */
+#ifdef DEBUG
+	printf("Setting address in Loginfo struct ...");
+#endif
 	strncpy(l->caddr, inet_ntoa(*csin), ADD_SIZE);
-	printf("addressSource : %s\nAddressCopy : %s\n",inet_ntoa(*csin), l->caddr);
+#ifdef DEBUG
+	printf(" DONE :\nAddress : %s\n", l->caddr);
+	fflush(stdout);
+#endif
 	/* unlock mutex */
 	if(pthread_mutex_unlock(&mutex_loginfo) < 0) {
 		perror("unlock mutex_loginfo");
@@ -129,7 +100,14 @@ void SetLogTime(Loginfo *l) {
 		exit(1);
 	}
 	/* fill time field in Loginfo struct */
+#ifdef DEBUG
+	printf("Setting time in Loginfo struct ...");
+#endif
 	strncpy(l->time, ctime(&t), TIM_SIZE);
+#ifdef DEBUG
+	printf(" DONE :\nTime : %s\n", l->time);
+	fflush(stdout);
+#endif
 	/* unlock mutex */
 	if(pthread_mutex_unlock(&mutex_loginfo) < 0) {
 		perror("unlock mutex_loginfo");
@@ -140,34 +118,71 @@ void SetLogTime(Loginfo *l) {
 /* Set server PID field in Loginfo *
  * This function is thread safe */
 void SetLogPid(Loginfo *l) {
+#ifdef DEBUG
+	printf("Setting PID in Loginfo struct ...");
+#endif
 	snprintf(l->spid, PID_SIZE, "%d", (int) getpid());
+#ifdef DEBUG
+	printf(" DONE :\nPID : %s\n", l->spid);
+	fflush(stdout);
+#endif
 }
 
 /* Set thread id field in Loginfo *
  * This function is thread safe */
 void SetLogTid(Loginfo *l) {
- 	snprintf(l->thid, PID_SIZE, "%d", (int) pthread_self());
+#ifdef DEBUG
+	printf("Setting ThID in Loginfo struct ...");
+#endif
+ 	snprintf(l->thid, PID_SIZE, "%u", (unsigned int) pthread_self());
+#ifdef DEBUG
+	printf(" DONE :\nThID : %s\n", l->thid);
+	fflush(stdout);
+#endif
 }
 
 /* Set line field in Loginfo *
  * This function is thread safe */
 void SetLogLine(Loginfo *l, const char* line) {
+#ifdef DEBUG
+	printf("Setting line in Loginfo struct ...");
+#endif
 	strncpy(l->line, line, LIN_SIZE);
+#ifdef DEBUG
+	printf(" DONE :\nLine : %s\n", l->line);
+	fflush(stdout);
+#endif
 }
 
 /* Set return code field in Loginfo *
  * This function is thread safe */
 void SetLogSret(Loginfo *l, const unsigned int r) {
-	snprintf(l->sret, RET_SIZE, "%u\n", r);
+#ifdef DEBUG
+	printf("Setting sret in Loginfo struct ...");
+#endif
+	snprintf(l->sret, RET_SIZE, "%u", r);
+#ifdef DEBUG
+	printf(" DONE :\nLine : %s\n", l->sret);
+	fflush(stdout);
+#endif
 }
 
 /* Set request size field in Loginfo *
  * This function is thread safe */
 void SetLogRsize(Loginfo *l, const unsigned int s) {
+#ifdef DEBUG
+	printf("Setting rsize in Loginfo struct ...");
+#endif
 	if ( s < ONEKILO) /* < 1ko */
-		snprintf(l->rsize, SIZ_SIZE, "%u o\n", s);
+		snprintf(l->rsize, SIZ_SIZE, "%u o", s);
 	else if (s < ONEMEGA) /* < 1Mo */
-		snprintf(l->rsize, SIZ_SIZE, "%4.2f Mo\n", (float)s/ONEKILO);
-	else
-		snprintf(l->rsize, SIZ_SIZE, "%4.2f Go\n", (float)s/ONEMEGA);
+		snprintf(l->rsize, SIZ_SIZE, "%4.2f ko", (float)s/ONEKILO);
+	else if (s < ONEGIGA) /* < 1Go */
+		snprintf(l->rsize, SIZ_SIZE, "%4.2f Mo", (float)s/ONEMEGA);
+	else /* > 1Go */
+		snprintf(l->rsize, SIZ_SIZE, "%4.2f Go", (float)s/ONEGIGA);
+#ifdef DEBUG
+	printf(" DONE :\nRSize : %s\n", l->rsize);
+	fflush(stdout);
+#endif
 }

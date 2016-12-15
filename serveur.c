@@ -14,32 +14,25 @@ int main (int argc, char ** argv) {
   int num_port  = 0;
   int nb_client = 0;
   int num_cpt   = 0;
-
-  char buffer[BUF_SIZE];
-  
-  /* descripteur de la socket */
+  /* descripteur de la socket de connexion */
   int sockd;
-
-  /* structure qui contient les informations de la socket */
-  struct sockaddr_in sinf ;
-
-  /* List of clients */
-  Client clients[nb_client];
-
+  /* structure qui contient les informations de la socket de connexion */
+  struct sockaddr_in sinf;
   /* Set of socket descriptor for select */
   fd_set rdfs;
-  int current = 0;
-
+  /* indice du premier thread libre dans le tableau */
+  int ind = 0;
   /* stop flag for the server */
   int stop_flag;
-  
-  /* indice du premier thread libre dans le tableau  */
-  /*TODO : do we still need it with TCP? */
-  int ind = 0;
+  /* List of clients */
+  Client *clients;
+  /* Buffer  for STDIN reading*/
+  char buffer[BUF_SIZE];
+
 
   /* verification si l'appel au programme est bon  */
   if (argc != 4) {
-    perror ("mauvaise utilisation :[port] [nbclientmax] [q5]");
+    fprintf(stderr, "mauvaise utilisation :%s [port] [nbclientmax] [q5]\n", argv[0]);
     exit (1);
   }
 
@@ -49,7 +42,12 @@ int main (int argc, char ** argv) {
   num_cpt    = atoi (argv[3]);
 
   /* creation du tableau de thread en fonction du nombre de client */
-  free_client = malloc (nb_client * sizeof (int));
+  free_client = calloc (sizeof(int), nb_client);
+  clients = calloc (sizeof(int), nb_client);
+  if(free_client == NULL || clients == NULL){
+  	perror("calloc clients/free_client");
+  	exit(1);
+  }
   
   /* creation de la socket  */
   if ( (sockd = socket (AF_INET, SOCK_STREAM, 0)) < 0) {
@@ -77,13 +75,12 @@ int main (int argc, char ** argv) {
 
 #ifdef DEBUG
   printf( "End server setup.\n");
-  printf( "PID:%d\n", getpid());
   fflush(stdout);
 #endif
 
   
-  printf ("serveur en ecoute\n");
-  printf ("Le serveur peut être stope en tapant \"QUIT\" suivi de ENTREE\n");
+  printf ("Serveur en ecoute\n");
+  printf ("Le serveur peut etre stope en tapant \"QUIT\" suivi de ENTREE\n");
 
   stop_flag = 1;
 
@@ -95,6 +92,8 @@ int main (int argc, char ** argv) {
     FD_SET(STDIN_FILENO, &rdfs);
     FD_SET(sockd, &rdfs);
 
+    printf("\t\t\t --- PRESELECT ---\n");
+
     /* Select from rdfs *
      * Use of select in order to be able  *
      * to receive commands from STDIN */
@@ -103,10 +102,12 @@ int main (int argc, char ** argv) {
       exit(1);
     }
 
+    printf("\t\t\t --- POSTSELECT ---\n");
+
     /* Input on STDIN */
     if (FD_ISSET(STDIN_FILENO, &rdfs)) {
 #ifdef DEBUG
-      printf("STDIN\n");
+      printf("Input on STDIN\n");
       fflush(stdout);
 #endif
       if(read(STDIN_FILENO, buffer, BUF_SIZE)<0) {
@@ -114,9 +115,11 @@ int main (int argc, char ** argv) {
       	exit(1);
       }
 
-      if(strncmp("QUIT\n",buffer,5)==0){
+      if(strncmp("QUIT\n",buffer,5)==0 || strncmp("quit\n", buffer,5)==0){
       	stop_flag = 0;
       }
+      else
+      	printf("Unknown command\n");
       continue;
     }
 
@@ -129,74 +132,81 @@ int main (int argc, char ** argv) {
       memset ((char*) &sinf, 0, sizeof(sinf));
       /* Accept first connection onto socket */
       if ((client_sock = accept (sockd, (struct sockaddr *) &csin, &sinsize)) < 0) {
-	perror("accept()");
-	exit(1);
+		perror("accept()");
+		exit(1);
       }
-      printf("\tBIENSRU KON PUISS ELE VOR RAPIDEMEENT EFFICACEMENT : %d\n", client_sock);
 
 #ifdef DEBUG
       printf("Connection attempt\n");
-      printf("Client address : %s\n", inet_ntoa(*(struct in_addr *) &csin));
+      printf("Client address : %s\n", inet_ntoa(csin.sin_addr));
       fflush(stdout);
 #endif
+      /* Lock mutex */
       if (pthread_mutex_lock (&mutex_cpt) < 0) {
-	perror ("lock mutex_cpt seveur");
-	exit (1);
+		perror ("lock mutex_cpt seveur");
+		exit (1);
       }
       
+      /* Server is able to accept more clients */
       if (cpt < nb_client) {
-	cpt ++;
+		cpt ++;
 
-	/* client en traitement  */
-	printf ("client reçu \n");
+		/* client en traitement  */
+		printf ("client recu \n");
       
-	/* prendre le tableau  */
-	ind = 0;
-	if (pthread_mutex_lock (&mutex_thread) < 0) {
-	  perror ("lock mutex_thread seveur");
-	  exit (1);
-	}
+		
+		ind = 0;
+		/* prendre le tableau  */
+		/* Mutex_cpt est locke plus haut, et pas libere
+		 * Celui ne sert a rien au final! 
+		 * TODO : Soit relacher le compteur plus tot,
+		 * soit virer ce mutex
+		if (pthread_mutex_lock (&mutex_thread) < 0) {
+	  		perror ("lock mutex_thread seveur");
+	  		exit (1);
+	  	}
+	  	*/
 
-	while (free_client[ind] == CL_BUSY) {
-	  ind ++;
-	}
-	/* le marquer comme pris */
-	free_client[ind] = CL_BUSY;
+		while (free_client[ind] == CL_BUSY) {
+	  		ind ++;
+		}
+		/* le marquer comme pris */
+		free_client[ind] = CL_BUSY;
      
-	/* relacher le tableau  */
-	if (pthread_mutex_unlock (&mutex_thread) < 0) {
-	  perror ("unlock mutex_thread seveur");
-	  exit (1);
-	}
-	clients[ind].sock = client_sock;
-	clients[ind].index = ind;
-	SetLogAddr(clients[ind].loginfo, &csin.sin_addr);
-	printf("ADDRESS : %s\n",clients[ind].loginfo->caddr);
-	printf("ADDRESS : %d\n",clients[ind].index);
-	fflush(stdout);
-	SetLogPid(clients[ind].loginfo);
-	printf("PID TAMERE : %s\n",clients[ind].loginfo->spid);
-	printf("PID : %d\n", (int) getpid());
+		/* relacher le tableau  */
+		/* Meme reflexion que plus haut 
+		if (pthread_mutex_unlock (&mutex_thread) < 0) {
+	  		perror ("unlock mutex_thread seveur");
+	  		exit (1);
+		}
+		*/
+	  	clients[ind].sock = client_sock;
+		clients[ind].index = ind;
+		SetLogAddr(&clients[ind].loginfo, &csin.sin_addr);
+		printf("ADDRESS : %s\n",clients[ind].loginfo.caddr);
+		printf("ADDRESS : %d\n",clients[ind].index);
+		fflush(stdout);
+		SetLogPid(&clients[ind].loginfo);
+		printf("PID TAMERE : %s\n",clients[ind].loginfo.spid);
+		printf("PID : %d\n", (int) getpid());
 	
-	/* Create pthread associated with the new client */
-	if ( pthread_create(&(clients[ind].thread), NULL, traitement_client,
+		/* Create pthread associated with the new client */
+		fflush(stdout);
+		if ( pthread_create(&(clients[ind].thread), NULL, traitement_client,
 			    &(clients[ind])) == -1) {
-	  perror("pthread_create");
-	  exit (1);
-	}
+	  		perror("pthread_create");
+	  		exit (1);
+		}
 
-      }
+      } /* end if cpt < nb_client */
 
       /* relacher le compteur  */
       if (pthread_mutex_unlock (&mutex_cpt) < 0) {
-	perror ("unlock mutex_cpt seveur");
-	exit (1);
+		perror ("unlock mutex_cpt seveur");
+		exit (1);
       }
-      
-
-      
-    }
-  }
+    } /* End case input on connection socket */
+  } /* End main loop -> while(stop_flag) */
 
    
   /*   variable partagées dans les threads
@@ -260,17 +270,20 @@ void *traitement_client(void *client) {
   char *ext;
   char ret[100];
 
+  //sleep(30);
   
 #ifdef DEBUG
-  printf ("dans le thread\n");
+  printf ("Dans le thread\n");
+  printf("Ma socket est : %u\n", c->sock);
 #endif
-  printf("C MA CSOK : %u\n", c->sock);
   if ((n = recv(c->sock, buffer, BUF_SIZE -1, 0)) < 1) {
-    perror("recv()ma bite");
+    perror("recv()");
     exit(1);
   }
-  SetLogTime(c->loginfo);
-  SetLogTid(c->loginfo);
+
+  /* Set time and tid into loginfo */
+  SetLogTime(&c->loginfo);
+  SetLogTid(&c->loginfo);
   
 #ifdef DEBUG
   printf("Lu\n");
@@ -278,7 +291,7 @@ void *traitement_client(void *client) {
   fflush(stdout);
 #endif
   if (msg_bien_forme(buffer, n)) {
-    SetLogLine(c->loginfo, strtok(buffer, "\n")); 
+    SetLogLine(&c->loginfo, strtok(buffer, "\n")); 
     /* Traitement de la requete */
 #ifdef DEBUG
     printf ("Bien forme\n");
@@ -289,6 +302,7 @@ void *traitement_client(void *client) {
 
   lu = strtok (buffer, "/");
 
+  /* C'est pas le role de msg_bien_forme de faire ca? */
   if ( (strcmp (lu, "GET ")) != 0) {
     close (c->sock);
     return NULL;
@@ -335,7 +349,7 @@ void *traitement_client(void *client) {
 #endif
 
   /* recup le type mime */
-  type_mime (ext, ret);
+  /* type_mime (ext, ret); */
   printf ("type mime : %s\n", ret);
   ////********  ICCII ******/
   if(send(c->sock, ret, strlen (ext)
@@ -411,11 +425,10 @@ void *traitement_client(void *client) {
     perror ("unlock mutex_cpt thread");
     exit (1);
   }
-
   /* fermer la socket pour la reutiliser  */
   close (c->sock);
-  //  WriteLog(c->loginfo, NULL);
-
+  /* WriteLog(c->loginfo, NULL); */
+  printf("COUCOU\n");
   return NULL;
 }
 
