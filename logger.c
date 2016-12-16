@@ -15,26 +15,32 @@ void WriteLog(Loginfo *l, char* filename){
 	if(filename==NULL)
 	  filename = LOGFILENAME;
 
-	lineMaxSize = ADD_SIZE + TIM_SIZE + 2*PID_SIZE +LIN_SIZE + RET_SIZE + SIZ_SIZE;
+	lineMaxSize = ADD_SIZE + TIM_SIZE + 2*PID_SIZE +LIN_SIZE + RET_SIZE + SIZ_SIZE + 6;
 	if((line=calloc(sizeof(char), lineMaxSize)) == NULL) {
-		perror("malloc() line");
+		perror("calloc() line");
 		exit(1);
 	}
 
 	/* Copy all information contained in loginfo struct
 	 * to output it in logfile */
 	strncat(line, l->caddr, ADD_SIZE);
+	strcat(line, " ");
 	strncat(line, l->time, TIM_SIZE);
 	/* Remove '\n' char from
 	 * default formatted time string */
-	cur = strchr(l->time, (int)'\n');
-	strncpy(cur, "", 1);
+	cur = strchr(line, (int)'\n');
+	if (cur != NULL) strcpy(cur, " ");
 	strncat(line, l->spid, PID_SIZE);
+	strcat(line, " ");
 	strncat(line, l->thid, PID_SIZE);
+	strcat(line, " ");
 	strncat(line, l->line, LIN_SIZE);
+	strcat(line, " ");
 	strncat(line, l->sret, LIN_SIZE);
+	strcat(line, " ");
 	strncat(line, l->rsize, SIZ_SIZE);
 	strcat(line, "\n");
+	printf("line : %s", line);
 
 	/* Lock to avoid thread problems */
 	if (pthread_mutex_lock (&mutex_logger) < 0) {
@@ -47,7 +53,7 @@ void WriteLog(Loginfo *l, char* filename){
 		exit(1);
 	}
 	/* write log into log file */
-	if (write(fd, line, lineMaxSize) < 0){
+	if (write(fd, line, strlen(line)) < 0){
 		perror("write() logs");
 		exit(1);
 	}
