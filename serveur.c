@@ -129,7 +129,7 @@ int main (int argc, char ** argv) {
       struct sockaddr_in csin;
       int client_sock;
       socklen_t sinsize = sizeof(csin);
-      memset ((char*) &sinf, 0, sizeof(sinf));
+      memset ((char*) &csin, 0, sizeof(csin));
       /* Accept first connection onto socket */
       if ((client_sock = accept (sockd, (struct sockaddr *) &csin, &sinsize)) < 0) {
 		perror("accept()");
@@ -182,6 +182,8 @@ int main (int argc, char ** argv) {
 		*/
 	  	clients[ind].sock = client_sock;
 		clients[ind].index = ind;
+		clients[ind].csinf = csin;
+		/* Needs to be removed since memset(0) is done in thread
 		SetLogAddr(&clients[ind].loginfo, &csin.sin_addr);
 		printf("ADDRESS : %s\n",clients[ind].loginfo.caddr);
 		printf("ADDRESS : %d\n",clients[ind].index);
@@ -189,10 +191,11 @@ int main (int argc, char ** argv) {
 		SetLogPid(&clients[ind].loginfo);
 		printf("PID TAMERE : %s\n",clients[ind].loginfo.spid);
 		printf("PID : %d\n", (int) getpid());
+		*/
 	
 		/* Create pthread associated with the new client */
 		fflush(stdout);
-		if ( pthread_create(&(clients[ind].thread), NULL, traitement_client,
+		if ( pthread_create(&(clients[ind].thread), NULL, traitement_thread,
 			    &(clients[ind])) == -1) {
 	  		perror("pthread_create");
 	  		exit (1);
@@ -269,8 +272,6 @@ void *traitement_client(void *client) {
   int fd = 0;
   char *ext;
   char ret[100];
-
-  //sleep(30);
   
 #ifdef DEBUG
   printf ("Dans le thread\n");
@@ -352,11 +353,13 @@ void *traitement_client(void *client) {
   /* type_mime (ext, ret); */
   printf ("type mime : %s\n", ret);
   ////********  ICCII ******/
+  /*
   if(send(c->sock, ret, strlen (ext)
 	  , 0) < 0) {
     perror("send()");
     exit(1);
   }
+  */
 
   while (read (fd, buffer, BUF_SIZE) != 0) {
     if(send(c->sock,buffer, strlen (buffer)
@@ -445,3 +448,103 @@ int msg_bien_forme (char *buff, int taille) {
     return 1;
   else return 0;
 }
+
+
+void *traitement_thread(void *arg) {
+	Client *c = (Client *) arg;
+	char buffer[BUF_SIZE];
+	char *filename;
+	int fd, n;
+#ifdef DEBUG
+	char DUMMYFILENAME[] = "dummyfile.txt";
+	filename = DUMMYFILENAME;
+#endif
+
+#ifdef DEBUG
+	printf("In thread\n");
+#endif
+
+	/* Clean memory zone allocated to loginfo struct */
+	memset(&c->loginfo, (int)'\0', sizeof(Loginfo));
+
+	/* Server receives request */
+	if (recv(c->sock, buffer, BUF_SIZE - 1, 0) < 0) {
+		perror("recv()");
+		exit(1);
+	}
+#ifdef DEBUG
+	printf(">>>> Received :\n>%s\n",buffer);
+#endif
+
+	/* Setting some loginfos */
+	/* ICICICICICI
+	 * L'appel a inet_ntoa dans setLogAddr ne retourne jamais
+	 * j'ai verifie, c'est pas le mutex, je sais pas pk il deconne comme ca 
+
+
+
+
+
+
+	SetLogAddr(&c->loginfo, c->csinf.sin_addr);
+	 */
+	SetLogTime(&c->loginfo);
+	SetLogPid(&c->loginfo);
+	SetLogTid(&c->loginfo);
+
+	/* Open file */
+	if ((fd = open(filename, O_RDONLY)) < 0) {
+		perror("open()");
+		exit(1);
+	}
+
+	/* Read whole file, and send it to client */
+	while ((n = read(fd, buffer, BUF_SIZE-1)) > 0) {
+		if(send(c->sock, buffer, n, 0) < 0) {
+			perror("send()");
+			exit(1);
+		}
+	}
+	if (n<0) {
+		perror("read()");
+		exit(1);
+	}
+
+	/* Close file */
+	if (close(fd) < 0) {
+		perror("close()");
+		exit(1);
+	}
+
+	/* Write logs */
+	WriteLog(&c->loginfo, NULL);
+
+	/* Free ressources */
+	close(c->sock);
+	if (pthread_mutex_lock(&mutex_cpt) != 0) {
+		perror("pthread_mutex_lock(mutex_cpt)");
+		exit(1);
+	}
+	cpt--;
+	if (pthread_mutex_unlock(&mutex_cpt) != 0) {
+		perror("pthread_mutex_unlock(mutex_cpt)");
+		exit(1);
+	}
+	if(pthread_mutex_lock(&mutex_thread) != 0) {
+		perror("pthread_mutex_lock(mutex_thread");
+		exit(1);
+	}
+	free_client[c->index] = CL_FREE;
+	if(pthread_mutex_unlock(&mutex_thread) != 0) {
+		perror("pthread_mutex_unlock(mutex_thread");
+		exit(1);
+	}
+
+	return NULL;
+}
+
+/*
+int valid_request(char *request) {
+	if
+}
+*/

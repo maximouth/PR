@@ -38,6 +38,7 @@ int *free_client;
   
 /* Prototypes */
 void *traitement_client(void *client);
+void *traitement_thread(void *arg);
 int msg_bien_forme (char *buff, int taille);
 
 #endif

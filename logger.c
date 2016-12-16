@@ -75,13 +75,16 @@ void WriteLog(Loginfo *l, char* filename){
  * This function is thread safe */
 void SetLogAddr(Loginfo *l, const struct in_addr *csin) {
 	/* thread unsafe function, calls need to be protected */
-	if(pthread_mutex_lock(&mutex_loginfo) < 0) {
+	printf("HERE\n");
+	/*if(pthread_mutex_lock(&mutex_loginfo) < 0) {
 		perror("lock mutex_loginfo");
 		exit(1);
-	}
+	}*/
 	/* fill caddr field in Loginfo struct */
 #ifdef DEBUG
 	printf("Setting address in Loginfo struct ...");
+	printf("%s\n", inet_ntoa(*csin));
+	fflush(stdout);
 #endif
 	strncpy(l->caddr, inet_ntoa(*csin), ADD_SIZE);
 #ifdef DEBUG
@@ -89,10 +92,10 @@ void SetLogAddr(Loginfo *l, const struct in_addr *csin) {
 	fflush(stdout);
 #endif
 	/* unlock mutex */
-	if(pthread_mutex_unlock(&mutex_loginfo) < 0) {
+	/*if(pthread_mutex_unlock(&mutex_loginfo) < 0) {
 		perror("unlock mutex_loginfo");
 		exit(1);
-	}
+	}*/
 	return;
 }
 
