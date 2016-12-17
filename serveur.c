@@ -474,11 +474,14 @@ int msg_bien_forme (char *buff, int taille) {
 
 void *traitement_thread(void *arg) {
   Client *c = (Client *) arg;
-  char buffer[BUF_SIZE];
+  char *buffer = malloc (BUF_SIZE * sizeof (char));
   char *filename;
   int fd, n;
   char *nom = malloc (40 * sizeof (char));
-
+  char *ext = malloc (40 * sizeof (char));
+  char *lu = malloc (40 * sizeof (char));
+  char *fichier = malloc (40 * sizeof (char));
+  
   tab_ext =  (mr_mime**) malloc (1500 * sizeof (mr_mime*));
 #ifdef DEBUG
   char DUMMYFILENAME[] = "serveur.c";
@@ -489,6 +492,68 @@ void *traitement_thread(void *arg) {
   printf("In thread\n");
 #endif
 
+  /* Clean memory zone allocated to loginfo struct */
+  memset(&c->loginfo, (int)'\0', sizeof(Loginfo));
+
+  /* Server receives request */
+  if (recv(c->sock, buffer, BUF_SIZE - 1, 0) < 0) {
+    perror("recv()");
+    exit(1);
+  }
+#ifdef DEBUG
+  printf(">>>> Received :\n>%s\n",buffer);
+  fflush(stdout);
+#endif
+
+  lu = strtok (buffer, "/");
+
+  /* C'est pas le role de msg_bien_forme de faire ca? */
+  if ( (strcmp (lu, "GET ")) != 0) {
+    close (c->sock);
+    return NULL;
+  }
+
+  fichier = strtok (NULL, " ");  
+#ifdef DEBUG
+  printf ("ficher : %s\n", fichier);
+#endif
+
+
+  /* test if FIle exist */
+  if ( (fd = open (fichier, O_RDONLY)) == -1) {
+    lu = "HTTP/1.1 404 Not Found\nContent-Type: text/html\n\n<html><body>\n\n<h1>404</h1>\n<h2>Not Found</h2>\n</body></html>";
+    if(send(c->sock,lu, strlen (lu)
+	    , 0) < 0) {
+      perror("send()");
+      exit(1);
+    }
+
+#ifdef DEBUG
+    printf ("ficher : %s pas ouvrable\n", fichier);
+#endif
+    
+    close (c->sock);
+    return NULL;
+  }
+
+  /* If file exist  */
+  lu ="HTTP/1.1 200 OK\nContent-Type: c";
+  if(send (c->sock, lu,
+	   strlen (lu), 0) < 0) {
+    perror("send()");
+    exit(1);
+  }
+
+  /* search file extension in mime type   */
+  strtok (fichier, ".");
+  ext = strtok (NULL, ".");
+
+#ifdef DEBUG
+  printf ("ext : %s\n", ext);
+  // printf ("type_mime %s\n", type_mime (ext));
+#endif
+
+  
   /*  remplir le tableau de type mime */
   tab_ext = parse_file( &count);
 #ifdef DEBUG
@@ -504,35 +569,12 @@ void *traitement_thread(void *arg) {
     fflush (stdout);
   }
 
-  type_mime (tab_ext, "c", nom, count);
+  type_mime (tab_ext, ext , nom, count);
 #ifdef DEBUG
   printf("type mime trouve\n");
 #endif
 
   printf ("type mime trouvé %s\n", nom);
-
-  
-  
-  /* Clean memory zone allocated to loginfo struct */
-  memset(&c->loginfo, (int)'\0', sizeof(Loginfo));
-
-  /* Server receives request */
-  if (recv(c->sock, buffer, BUF_SIZE - 1, 0) < 0) {
-    perror("recv()");
-    exit(1);
-  }
-#ifdef DEBUG
-  printf(">>>> Received :\n>%s\n",buffer);
-#endif
-
-  /* Setting some loginfos */
-  /* ICICICICICI
-   * L'appel a inet_ntoa dans setLogAddr ne retourne jamais
-   * j'ai verifie, c'est pas le mutex, je sais pas pk il deconne comme ca 
-   SetLogAddr(&c->loginfo, c->csinf.sin_addr);
-  */
-
-
 
 
   SetLogTime(&c->loginfo);

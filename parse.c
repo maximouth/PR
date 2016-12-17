@@ -137,7 +137,7 @@ int type_mime (mr_mime **tab, char * ext, char *res, int max) {
 
   int i = 0;
   
-  for ( i = 0; i < max; ++i)  {
+  for ( i = 0; i < max + 1; ++i)  {
 
 #ifdef DEBUG
     printf("dans le for %d, tabi : %s \n", i, tab[i]->extension );
@@ -159,7 +159,7 @@ int type_mime (mr_mime **tab, char * ext, char *res, int max) {
     }
 
   /* not found */
-  strcpy (ext, "text/xplain");
+  strcpy (res, "text/plain");
   return 1;
 
 
