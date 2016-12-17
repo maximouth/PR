@@ -1,275 +1,166 @@
-/* include libc  */
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
-#include <fcntl.h>
+#include "parse.h"
+
+/***************
+
+remettre tout en pointeur de pointeur
+tab_ext = pointeur de pointer
+
+*************/
 
 
-void read_line (int fd, char *ret) {
-  char *val = malloc (150 * sizeof (char));
+/* create an instance of the struct  */
+mr_mime *creer_mr_mime(char* name ,char* ext){
+  mr_mime *tmp = (mr_mime *) malloc (sizeof (mr_mime));
+  tmp -> nom = strdup (name);
+  tmp -> extension = strdup (ext);
+  return tmp;
+}
+
+/*  read one line of a file and return it  */
+int read_line (int fd, char *ret) {
+  char val;
   int i = 0;
 
-#ifdef DEBUG
-  printf ("dans le read line\n");
-#endif
-  if (read (fd, val, 1) == 0) {
-    printf ("return");
-    ret[0] = '\0';;
-    return;
+  if (read (fd, &val, 1) == 0) {
+    ret[0] = '\0';
+    return 0;
   }
-  
-  while ( (val[0] != '\n') && (val[0] != '\0') )  {
-    ret [i] = val[0];
-#ifdef DEBUG
-    printf ("lu : %c\n",val[0]);
-#endif
-    fflush(stdout);
+
+  while ( val!= '\n' && val != '\0' )  {
+    ret [i] = val;
     i++;
-    read (fd, val, 1);
+    read (fd, &val, 1);
   }
-#ifdef DEBUG
-  printf ("fin lecture, i: %d\n", i);
-  fflush(stdout);
-#endif
 
-  ret [i]   = '\n';
-  ret [i+1] = '\0';
-
-  return;
+  ret [i] = '\0';
+  return 1;
 }
 
 
-void type_mime (char *ext, char* ret) {
-  int fd = 0;
-  char line [80] = "a";
-  int i = 0, j = 0;
-  char *type   =  malloc (150 * sizeof (char));
-  char *ext_lu =  malloc (150 * sizeof (char));
+/*  parse the mime/type file and store the results in a Mr_mime tab */
+mr_mime ** parse_file (int *res) {
+
+  int i = 0;
+
+  /* the tab of mr_mime  */
+  mr_mime** mr_mim_tab = (mr_mime**) malloc (1500 * sizeof (mr_mime*));
+  /* reagexp for the search  */
+  char * regexString ="(\\S+)\\s*(.+)*";
+  regex_t regexCompiled;
+
+  /* to read the file  */
+  char buffer [128];
+  int count = 0;
+
+  /* number of match found in the regexp  */
+  int match = 0;
   
-  if ( (fd = open ("/etc/mime.types", O_RDONLY)) == -1) {
-    perror ("open mime");
-    exit (1);
+  size_t maxGroups = 0;
+  regmatch_t *groupArray = NULL;
+  
+  /* try to open mime.types file  */
+  int fd=open("/etc/mime.types",O_RDONLY);
+
+  if(fd<0){
+    perror("open()");
+    exit(errno);
   }
 
-  printf ("type mime\n");
+  /* init the mr_mime_tab  */
+  for(i = 0; i < 1500; i++) {
+    mr_mim_tab[i] = (mr_mime *) malloc (sizeof (mr_mime));
+  }
 
-  
-  /* tant que pas fin du fichier  */
-  while (line[0] != '\0') {
-
-  debut:
-    
-    i = 0;
-    j = 0;
-#ifdef DEBUG
-    printf ("avant read line\n");
-    fflush(stdout);
-#endif    
-    /* lire premiere ligne  */
-    read_line (fd, line);
-#ifdef DEBUG
-    printf ("apres read line\n");
-    fflush(stdout);
-#endif    
-
-
-    /* jeter les lignes mal formées */
-    if ( (line [0] == '#') || (line [0] == '\n') ) {
-#ifdef DEBUG
-    printf ("goto2\n");
-    fflush(stdout);
-#endif    
-      goto debut;
+  /* compile the rexexp and store the info in regxcompiled  */
+  if (regcomp(&regexCompiled, regexString, REG_EXTENDED))
+    {
+      perror ("Could not compile regular expression");
+      exit (1);
     }
 
-#ifdef DEBUG
-    printf ("%s", line);
-#endif    
-
-    /* stocker la valeur du type (avant espace) */
-    while ( (line[i] != '\t') && (line[i] != ' ')  ) {
-
-      /* si pas d'extensions assosiées passer au cas suivant  */
-      if (line [i] == '\n') {
-#ifdef DEBUG
-    printf ("goto1\n");
-    fflush(stdout);
-#endif    
-	goto debut;
-      }
-
-      type[i] = line [i];
-      i++;
-    }
-    type [i] = '\0';
+  while(read_line(fd,buffer)) {
     
+    if(buffer[0] == '#' || buffer[0]=='\n' || buffer[0]=='\0')
+      continue;
 
-#ifdef DEBUG
-    printf ("type %s\n", type);
-#endif    
+    maxGroups = regexCompiled.re_nsub +1;
+    groupArray = (regmatch_t*) malloc (sizeof (regmatch_t) * maxGroups);
 
+    match = regexec(&regexCompiled, buffer, maxGroups, groupArray, 0);
 
-    /* si pas d'extensions assosiées passer au cas suivant  */
-    if (line [i] == '\n') {
-#ifdef DEBUG
-    printf ("goto\n");
-    fflush(stdout);
-#endif    
-      goto debut;
-    }
-
-    
-    /* jeter les espaces avant la description */
-    while ( (line[i] == '\t') || (line[i] == ' ') ) {
-      i++;
-    }
-
-#ifdef DEBUG
-    printf ("while\n");
-    fflush(stdout);
-#endif    
-
-    /*  chercher les extensions si il y en a  
-	entre dans le while seulement si il y a au moins une ext
-    */
-    while ( (line[i] != '\n') && (line[i] != '\0') ) {
-
-      /* espace entre les extensions  */
-      if (line[i] == ' ') {
-	i++;
-      }
-
-      j = 0;
-      /* tant qu'il y a un char a lire dans l'ext  */
-      while ( (line[i] != '\n') && (line[i] != ' ') ) {
-	/* rajoute le char lu dans ext_lu  */
-#ifdef DEBUG
-	printf ("i : %d, j : %d, linei : %c\n", i ,j, line[i]);
-	fflush(stdout);
-#endif
-
-	/*****    ERREUT SEGMENTATION IICIII *****/
-	/*****           POURQUOI?                    *****/
-	ext_lu[j] = line [i];
-#ifdef DEBUG
-	printf ("ext_lu[j] : %c\n", ext_lu[j]);
-	fflush(stdout);
-#endif
-	i++; j++;
-      }
-      ext_lu [j] = '\0';
-      /* comparer l'ext lu avec celle recherchée */
-#ifdef DEBUG
-      printf ("ext1 %s\n", ext_lu);
-      fflush(stdout);
-#endif
-    
-      /* si la même que celle q'uon cherche  */
-      if (strcmp (ext_lu, ext) == 0) {
-	/* renvoyer le type de l'extension trouvée  */
-	for (j = 0; j < strlen (type); j++) {
-	  ret[j] = type [j];
+    /* si pas d'occurence trouvée  */
+    if (match == 0)
+      {
+	if(maxGroups ==1){
+	  continue;
 	}
-#ifdef DEBUG
-	printf ("trouvé 1\n");
-#endif
-	return;
-      }
 
-    
+	unsigned int start_0 = groupArray[1].rm_so;
+	unsigned int end_0   = groupArray[1].rm_eo;
+	unsigned int size_0  = end_0-start_0;
+	unsigned int start_1 = groupArray[2].rm_so;
+	unsigned int end_1   = groupArray[2].rm_eo;
+	unsigned int size_1  = end_1-start_1;
+
+	char* group0 = (char*) malloc( (size_0 +1) * sizeof (char));
+	char* group1 = (char*) malloc( (size_1 +1) * sizeof (char));
+
+	strncpy (group0, &buffer[start_0], size_0);
+	group0 [size_0] = '\0';
+	strncpy (group1, &buffer [start_1], size_1);
+	group1[size_1] = '\0';
+	const char s[2] = " ";
+	if (group1[0] != '\0') {
+	  char* tmp=strtok(group1,s);
+	  while(tmp != NULL){
+	    mr_mim_tab[count++] = creer_mr_mime(group0, tmp);
+	    tmp=strtok(NULL, s);
+	  }
+	}
+
+      }else if ( match == REG_NOMATCH){
+      printf ("pas de match\n");
+    } else {
+      printf ("pas de regexec\n");
     }
 
-    read_line (fd, line);    
   }
-  return;
+
+  /* return the tab of mr_mime full with ext and mime/type */
+  *res = count - 1;
+  return mr_mim_tab;
 }
 
+/*  search in the tab to find the extension         */
+/*  if not in the mime/type file return text/plain  */
+int type_mime (mr_mime **tab, char * ext, char *res, int max) {
+
+  int i = 0;
   
-/*   /\* */
-/*      80 + 1 + 74 + 73 + 67 + 72 + 73 + 77 + 65 + 1 + 13 + 1 + 59;; */
-/*   *\/ */
-/*   /\* virer le commentaires à la con...  *\/ */
-/*   for (i = 0; i < 615; i++) { */
-/*     read (fd, buff, 1); */
-/*   } */
+  for ( i = 0; i < max; ++i)  {
 
-/*   while ( (nb = read (fd, buff, 1) )!= 0) { */
+#ifdef DEBUG
+    printf("dans le for %d, tabi : %s \n", i, tab[i]->extension );
+    fflush (stdout);
+#endif
 
-/*   debutboucle: */
-/*     /\* recherche type  *\/ */
-/*     i = 0; */
-/*     type[i] = buff[i]; */
-/*     while ((buff[0] != '\t') && (buff[0] != ' ') */
-/* 	   && (buff[0] != '\n') ) { */
-/*       //      printf ("buff :%c\n", buff[0]); */
-/*       type[i] = buff[0]; */
-/*       i++; */
-/*       read (fd, buff, 1); */
-/*     } */
-/*     type[i] = '\0'; */
+    if(strcmp(tab[i]->extension, ext) == 0){
+	printf("trouver c'est \n %s \n", tab[i]->nom);
+	strcpy (res, tab[i]->nom);
+	return 0;
+      }
 
-/*     /\* retirer les tab espaces et retour a la ligne  *\/ */
-/*     while ((buff[0] == '\t') || (buff[0] == ' ') */
-/* 	   || (buff[0] == '\n') || (buff[0] == '#')) { */
-      
-/*       if ( (buff[0] == '\n') || (buff[0] == '#') )  { */
+#ifdef DEBUG
+      	printf("dans le for %d \n", i);
+	fflush (stdout);
+#endif
+	
+	
+    }
 
-/* 	if (buff[0] == '#') { */
-/* 	  while (buff[0] != '\n') */
-/* 	    read (fd, buff, 1); */
-/* 	} */
-/* 	read (fd, buff, 1); */
-/* 	/\* a modifier...  *\/ */
-/* 	goto debutboucle; */
-/*       } */
-/*       read (fd, buff, 1); */
-/*     } */
-    
-/* lect_ext: */
-/*     /\* recherche ext  *\/ */
-/*     i = 0; */
-/*     tmp[i] = buff[i]; */
-/*     /\*tant qu'il y a un vrai car a lire pour une exension *\/ */
-/*     while ((buff[0] != '\t') && (buff[0] != ' ') */
-/* 	   && (buff[0] != '\n') ) { */
-/*       tmp[i] = buff[0]; */
-/*       i++; */
-/*       if (read (fd, buff, 1) == 0) { */
-/* 	close (fd); */
-/* 	ret = "raté"; */
-/* 	return ; */
-/*       } */
-/*     } */
-/*     tmp[i] = '\0'; */
+  /* not found */
+  strcpy (ext, "text/xplain");
+  return 1;
 
-/* #ifdef DEBUG */
-/*     //    printf ("ext :%s, vrai :%s\n", tmp, ext); */
-/* #endif */
 
-/*     /\* si on a trouver la bonne  extension*\/ */
-/*     if (strcmp (tmp, ext) == 0) { */
-/*       close (fd); */
-/*       /\* renvoyer le type mime *\/ */
-/*       for (i = 0; i < strlen (type); i++)  { */
-/* 	ret [i] = type[i]; */
-/*       } */
-/*       return; */
-/*     } */
-
-/*     if (buff[0] == ' ') { */
-/*       if (read (fd, buff, 1) == 0) { */
-/* 	close (fd); */
-/* 	ret = "raté"; */
-/* 	return ; */
-/*       } */
-/*       goto lect_ext; */
-/*     } */
-    
-/*   } */
-   
-
-/*   close (fd); */
-/*   ret = "raté"; */
-/*   return ; */
-/* } */
+}

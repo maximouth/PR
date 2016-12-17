@@ -4,10 +4,15 @@
 #include "serveur.h"
 #include "parse.h"
 
+
 #define CL_BUSY 1
 #define CL_FREE 0
 
+/* tableau de type mime  */
+mr_mime** tab_ext;
 
+/* number of type mime trouve  */
+int count = 0;
 
 int main (int argc, char ** argv) {
   /* arguments passé en ligne de commande  */
@@ -29,13 +34,14 @@ int main (int argc, char ** argv) {
   /* Buffer  for STDIN reading*/
   char buffer[BUF_SIZE];
 
-
+  
+  
   /* verification si l'appel au programme est bon  */
   if (argc != 4) {
     fprintf(stderr, "mauvaise utilisation :%s [port] [nbclientmax] [q5]\n", argv[0]);
     exit (1);
   }
-
+  
   /* recuperation des variables  */
   num_port   = atoi (argv[1]);
   nb_client  = atoi (argv[2]);
@@ -45,8 +51,8 @@ int main (int argc, char ** argv) {
   free_client = calloc (sizeof(int), nb_client);
   clients = calloc (sizeof(int), nb_client);
   if(free_client == NULL || clients == NULL){
-  	perror("calloc clients/free_client");
-  	exit(1);
+    perror("calloc clients/free_client");
+    exit(1);
   }
   
   /* creation de la socket  */
@@ -77,11 +83,27 @@ int main (int argc, char ** argv) {
   printf( "End server setup.\n");
   fflush(stdout);
 #endif
-
   
   printf ("Serveur en ecoute\n");
   printf ("Le serveur peut etre stope en tapant \"QUIT\" suivi de ENTREE\n");
 
+  /*  remplir le tableau de type mime */
+  tab_ext = parse_file( &count);
+#ifdef DEBUG
+  printf( "tableau des extentions rempli\n");
+  fflush(stdout);
+#endif
+
+  int i = 0;
+  
+  for ( i = 0; i < count; ++i)  {
+    printf ("ext : %s, nom %s\n", tab_ext[i]->extension,
+	    tab_ext[i]->nom);
+    fflush (stdout);
+  }
+  
+  
+  
   stop_flag = 1;
 
   while(stop_flag) {
@@ -132,8 +154,8 @@ int main (int argc, char ** argv) {
       memset ((char*) &csin, 0, sizeof(csin));
       /* Accept first connection onto socket */
       if ((client_sock = accept (sockd, (struct sockaddr *) &csin, &sinsize)) < 0) {
-		perror("accept()");
-		exit(1);
+	perror("accept()");
+	exit(1);
       }
 
 #ifdef DEBUG
@@ -143,70 +165,70 @@ int main (int argc, char ** argv) {
 #endif
       /* Lock mutex */
       if (pthread_mutex_lock (&mutex_cpt) < 0) {
-		perror ("lock mutex_cpt seveur");
-		exit (1);
+	perror ("lock mutex_cpt seveur");
+	exit (1);
       }
       
       /* Server is able to accept more clients */
       if (cpt < nb_client) {
-		cpt ++;
+	cpt ++;
 
-		/* client en traitement  */
-		printf ("client recu \n");
+	/* client en traitement  */
+	printf ("client recu \n");
       
 		
-		ind = 0;
-		/* prendre le tableau  */
-		/* Mutex_cpt est locke plus haut, et pas libere
-		 * Celui ne sert a rien au final! 
-		 * TODO : Soit relacher le compteur plus tot,
-		 * soit virer ce mutex
-		if (pthread_mutex_lock (&mutex_thread) < 0) {
-	  		perror ("lock mutex_thread seveur");
-	  		exit (1);
-	  	}
-	  	*/
+	ind = 0;
+	/* prendre le tableau  */
+	/* Mutex_cpt est locke plus haut, et pas libere
+	 * Celui ne sert a rien au final! 
+	 * TODO : Soit relacher le compteur plus tot,
+	 * soit virer ce mutex
+	 if (pthread_mutex_lock (&mutex_thread) < 0) {
+	 perror ("lock mutex_thread seveur");
+	 exit (1);
+	 }
+	*/
 
-		while (free_client[ind] == CL_BUSY) {
-	  		ind ++;
-		}
-		/* le marquer comme pris */
-		free_client[ind] = CL_BUSY;
+	while (free_client[ind] == CL_BUSY) {
+	  ind ++;
+	}
+	/* le marquer comme pris */
+	free_client[ind] = CL_BUSY;
      
-		/* relacher le tableau  */
-		/* Meme reflexion que plus haut 
-		if (pthread_mutex_unlock (&mutex_thread) < 0) {
-	  		perror ("unlock mutex_thread seveur");
-	  		exit (1);
-		}
-		*/
-	  	clients[ind].sock = client_sock;
-		clients[ind].index = ind;
-		clients[ind].csinf = csin;
-		/* Needs to be removed since memset(0) is done in thread
-		SetLogAddr(&clients[ind].loginfo, &csin.sin_addr);
-		printf("ADDRESS : %s\n",clients[ind].loginfo.caddr);
-		printf("ADDRESS : %d\n",clients[ind].index);
-		fflush(stdout);
-		SetLogPid(&clients[ind].loginfo);
-		printf("PID TAMERE : %s\n",clients[ind].loginfo.spid);
-		printf("PID : %d\n", (int) getpid());
-		*/
+	/* relacher le tableau  */
+	/* Meme reflexion que plus haut 
+	   if (pthread_mutex_unlock (&mutex_thread) < 0) {
+	   perror ("unlock mutex_thread seveur");
+	   exit (1);
+	   }
+	*/
+	clients[ind].sock = client_sock;
+	clients[ind].index = ind;
+	clients[ind].csinf = csin;
+	/* Needs to be removed since memset(0) is done in thread
+	   SetLogAddr(&clients[ind].loginfo, &csin.sin_addr);
+	   printf("ADDRESS : %s\n",clients[ind].loginfo.caddr);
+	   printf("ADDRESS : %d\n",clients[ind].index);
+	   fflush(stdout);
+	   SetLogPid(&clients[ind].loginfo);
+	   printf("PID TAMERE : %s\n",clients[ind].loginfo.spid);
+	   printf("PID : %d\n", (int) getpid());
+	*/
 	
-		/* Create pthread associated with the new client */
-		fflush(stdout);
-		if ( pthread_create(&(clients[ind].thread), NULL, traitement_thread,
+	/* Create pthread associated with the new client */
+	fflush(stdout);
+	if ( pthread_create(&(clients[ind].thread), NULL, traitement_thread,
 			    &(clients[ind])) == -1) {
-	  		perror("pthread_create");
-	  		exit (1);
-		}
+	  perror("pthread_create");
+	  exit (1);
+	}
 
       } /* end if cpt < nb_client */
 
       /* relacher le compteur  */
       if (pthread_mutex_unlock (&mutex_cpt) < 0) {
-		perror ("unlock mutex_cpt seveur");
-		exit (1);
+	perror ("unlock mutex_cpt seveur");
+	exit (1);
       }
     } /* End case input on connection socket */
   } /* End main loop -> while(stop_flag) */
@@ -334,8 +356,8 @@ void *traitement_client(void *client) {
 
   /* If file exist  */
   lu ="HTTP/1.1 200 OK\nContent-Type: c";
-  if(send(c->sock,lu, strlen (lu)
-	  , 0) < 0) {
+  if(send (c->sock, lu,
+	   strlen (lu), 0) < 0) {
     perror("send()");
     exit(1);
   }
@@ -354,11 +376,11 @@ void *traitement_client(void *client) {
   printf ("type mime : %s\n", ret);
   ////********  ICCII ******/
   /*
-  if(send(c->sock, ret, strlen (ext)
-	  , 0) < 0) {
+    if(send(c->sock, ret, strlen (ext)
+    , 0) < 0) {
     perror("send()");
     exit(1);
-  }
+    }
   */
 
   while (read (fd, buffer, BUF_SIZE) != 0) {
@@ -451,100 +473,120 @@ int msg_bien_forme (char *buff, int taille) {
 
 
 void *traitement_thread(void *arg) {
-	Client *c = (Client *) arg;
-	char buffer[BUF_SIZE];
-	char *filename;
-	int fd, n;
+  Client *c = (Client *) arg;
+  char buffer[BUF_SIZE];
+  char *filename;
+  int fd, n;
+  char *nom = malloc (40 * sizeof (char));
+
+  tab_ext =  (mr_mime**) malloc (1500 * sizeof (mr_mime*));
 #ifdef DEBUG
-	char DUMMYFILENAME[] = "dummyfile.txt";
-	filename = DUMMYFILENAME;
+  char DUMMYFILENAME[] = "serveur.c";
+  filename = DUMMYFILENAME;
 #endif
 
 #ifdef DEBUG
-	printf("In thread\n");
+  printf("In thread\n");
 #endif
 
-	/* Clean memory zone allocated to loginfo struct */
-	memset(&c->loginfo, (int)'\0', sizeof(Loginfo));
-
-	/* Server receives request */
-	if (recv(c->sock, buffer, BUF_SIZE - 1, 0) < 0) {
-		perror("recv()");
-		exit(1);
-	}
+  /*  remplir le tableau de type mime */
+  tab_ext = parse_file( &count);
 #ifdef DEBUG
-	printf(">>>> Received :\n>%s\n",buffer);
+  printf( "tableau des extentions rempli\n");
+  fflush(stdout);
+#endif
+  
+  int i = 0;
+  
+  for ( i = 0; i < count; ++i)  {
+    printf ("ext : %s, nom %s\n", tab_ext[i]->extension,
+	    tab_ext[i]->nom);
+    fflush (stdout);
+  }
+
+  type_mime (tab_ext, "c", nom, count);
+#ifdef DEBUG
+  printf("type mime trouve\n");
 #endif
 
-	/* Setting some loginfos */
-	/* ICICICICICI
-	 * L'appel a inet_ntoa dans setLogAddr ne retourne jamais
-	 * j'ai verifie, c'est pas le mutex, je sais pas pk il deconne comme ca 
+  printf ("type mime trouvé %s\n", nom);
+
+  
+  
+  /* Clean memory zone allocated to loginfo struct */
+  memset(&c->loginfo, (int)'\0', sizeof(Loginfo));
+
+  /* Server receives request */
+  if (recv(c->sock, buffer, BUF_SIZE - 1, 0) < 0) {
+    perror("recv()");
+    exit(1);
+  }
+#ifdef DEBUG
+  printf(">>>> Received :\n>%s\n",buffer);
+#endif
+
+  /* Setting some loginfos */
+  /* ICICICICICI
+   * L'appel a inet_ntoa dans setLogAddr ne retourne jamais
+   * j'ai verifie, c'est pas le mutex, je sais pas pk il deconne comme ca 
+   SetLogAddr(&c->loginfo, c->csinf.sin_addr);
+  */
 
 
 
 
+  SetLogTime(&c->loginfo);
+  SetLogPid(&c->loginfo);
+  SetLogTid(&c->loginfo);
 
+  /* Open file */
+  if ((fd = open(filename, O_RDONLY)) < 0) {
+    perror("open()");
+    exit(1);
+  }
 
-	SetLogAddr(&c->loginfo, c->csinf.sin_addr);
-	 */
-	SetLogTime(&c->loginfo);
-	SetLogPid(&c->loginfo);
-	SetLogTid(&c->loginfo);
+  /* Read whole file, and send it to client */
+  while ((n = read(fd, buffer, BUF_SIZE-1)) > 0) {
+    if(send(c->sock, buffer, n, 0) < 0) {
+      perror("send()");
+      exit(1);
+    }
+  }
+  if (n<0) {
+    perror("read()");
+    exit(1);
+  }
 
-	/* Open file */
-	if ((fd = open(filename, O_RDONLY)) < 0) {
-		perror("open()");
-		exit(1);
-	}
+  /* Close file */
+  if (close(fd) < 0) {
+    perror("close()");
+    exit(1);
+  }
 
-	/* Read whole file, and send it to client */
-	while ((n = read(fd, buffer, BUF_SIZE-1)) > 0) {
-		if(send(c->sock, buffer, n, 0) < 0) {
-			perror("send()");
-			exit(1);
-		}
-	}
-	if (n<0) {
-		perror("read()");
-		exit(1);
-	}
+  /* Write logs */
+  WriteLog(&c->loginfo, NULL);
 
-	/* Close file */
-	if (close(fd) < 0) {
-		perror("close()");
-		exit(1);
-	}
+  /* Free ressources */
+  close(c->sock);
+  if (pthread_mutex_lock(&mutex_cpt) != 0) {
+    perror("pthread_mutex_lock(mutex_cpt)");
+    exit(1);
+  }
+  cpt--;
+  if (pthread_mutex_unlock(&mutex_cpt) != 0) {
+    perror("pthread_mutex_unlock(mutex_cpt)");
+    exit(1);
+  }
+  if(pthread_mutex_lock(&mutex_thread) != 0) {
+    perror("pthread_mutex_lock(mutex_thread");
+    exit(1);
+  }
+  free_client[c->index] = CL_FREE;
+  if(pthread_mutex_unlock(&mutex_thread) != 0) {
+    perror("pthread_mutex_unlock(mutex_thread");
+    exit(1);
+  }
 
-	/* Write logs */
-	WriteLog(&c->loginfo, NULL);
-
-	/* Free ressources */
-	close(c->sock);
-	if (pthread_mutex_lock(&mutex_cpt) != 0) {
-		perror("pthread_mutex_lock(mutex_cpt)");
-		exit(1);
-	}
-	cpt--;
-	if (pthread_mutex_unlock(&mutex_cpt) != 0) {
-		perror("pthread_mutex_unlock(mutex_cpt)");
-		exit(1);
-	}
-	if(pthread_mutex_lock(&mutex_thread) != 0) {
-		perror("pthread_mutex_lock(mutex_thread");
-		exit(1);
-	}
-	free_client[c->index] = CL_FREE;
-	if(pthread_mutex_unlock(&mutex_thread) != 0) {
-		perror("pthread_mutex_unlock(mutex_thread");
-		exit(1);
-	}
-
-	return NULL;
+  return NULL;
 }
 
-/*
-int valid_request(char *request) {
-	if
-}
-*/

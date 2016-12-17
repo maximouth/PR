@@ -18,7 +18,7 @@
 #include <pthread.h>
 
 /* include .h de nous  */
-
+#include "parse.h"
 
 /* defines */
 #define BUF_SIZE 701
@@ -32,6 +32,7 @@ static pthread_mutex_t mutex_cpt = PTHREAD_MUTEX_INITIALIZER;
 
 /* nombre de client en simultané */
 int cpt = 0;
+
 
 
 int *free_client;
