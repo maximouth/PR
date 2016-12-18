@@ -8,14 +8,16 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <pthread.h>
 
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/select.h>
+#include <sys/stat.h>
+
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include <sys/select.h>
 
-#include <pthread.h>
 
 /* include .h de nous  */
 #include "parse.h"

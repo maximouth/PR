@@ -481,11 +481,13 @@ void *traitement_thread(void *arg) {
   char *ext = malloc (40 * sizeof (char));
   char *lu = malloc (40 * sizeof (char));
   char *fichier = malloc (40 * sizeof (char));
+  struct stat st;
+
   
   tab_ext =  (mr_mime**) malloc (1500 * sizeof (mr_mime*));
 #ifdef DEBUG
-  char DUMMYFILENAME[] = "serveur.c";
-  filename = DUMMYFILENAME;
+  //  char DUMMYFILENAME[] = "serveur.c";
+  //filename = DUMMYFILENAME;
 #endif
 
 #ifdef DEBUG
@@ -536,6 +538,26 @@ void *traitement_thread(void *arg) {
     return NULL;
   }
 
+  /* recuperer les infos du fichier */
+  stat (fichier, &st);
+  /* tester si l'ob a les bon droits sur le fichier */
+  if  ( (st.st_mode & S_IRGRP) == 1) {
+
+        lu = "HTTP/1.1 404 Not Found\nContent-Type: text/html\n\n<html><body>\n\n<h1>404</h1>\n<h2>Not Found</h2>\n</body></html>";
+    if(send(c->sock,lu, strlen (lu)
+	    , 0) < 0) {
+      perror("send()");
+      exit(1);
+    }
+
+#ifdef DEBUG
+    printf ("ficher : %s pas ouvrable\n", fichier);
+#endif
+    
+    close (c->sock);
+    return NULL;
+  }
+   
   /* If file exist  */
   lu ="HTTP/1.1 200 OK\nContent-Type: c";
   if(send (c->sock, lu,
@@ -582,11 +604,13 @@ void *traitement_thread(void *arg) {
   SetLogTid(&c->loginfo);
 
   /* Open file */
-  if ((fd = open(filename, O_RDONLY)) < 0) {
+  if ((fd = open(fichier, O_RDONLY)) < 0) {
     perror("open()");
     exit(1);
   }
 
+  
+  
   /* Read whole file, and send it to client */
   while ((n = read(fd, buffer, BUF_SIZE-1)) > 0) {
     if(send(c->sock, buffer, n, 0) < 0) {
