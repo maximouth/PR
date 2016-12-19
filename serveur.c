@@ -312,6 +312,28 @@ void *traitement_client(void *client) {
   /* C'est pas le role de msg_bien_forme de faire ca? */
   if ( (strcmp (lu, "GET ")) != 0) {
     close (c->sock);
+
+    
+  if (pthread_mutex_lock(&mutex_cpt) != 0) {
+    perror("pthread_mutex_lock(mutex_cpt)");
+    exit(1);
+  }
+  cpt--;
+  if (pthread_mutex_unlock(&mutex_cpt) != 0) {
+    perror("pthread_mutex_unlock(mutex_cpt)");
+    exit(1);
+  }
+  if(pthread_mutex_lock(&mutex_thread) != 0) {
+    perror("pthread_mutex_lock(mutex_thread");
+    exit(1);
+  }
+  free_client[c->index] = CL_FREE;
+  if(pthread_mutex_unlock(&mutex_thread) != 0) {
+    perror("pthread_mutex_unlock(mutex_thread");
+    exit(1);
+  }
+
+
     return NULL;
   }
 
@@ -335,6 +357,28 @@ void *traitement_client(void *client) {
 #endif
     
     close (c->sock);
+
+    
+  if (pthread_mutex_lock(&mutex_cpt) != 0) {
+    perror("pthread_mutex_lock(mutex_cpt)");
+    exit(1);
+  }
+  cpt--;
+  if (pthread_mutex_unlock(&mutex_cpt) != 0) {
+    perror("pthread_mutex_unlock(mutex_cpt)");
+    exit(1);
+  }
+  if(pthread_mutex_lock(&mutex_thread) != 0) {
+    perror("pthread_mutex_lock(mutex_thread");
+    exit(1);
+  }
+  free_client[c->index] = CL_FREE;
+  if(pthread_mutex_unlock(&mutex_thread) != 0) {
+    perror("pthread_mutex_unlock(mutex_thread");
+    exit(1);
+  }
+
+
     return NULL;
   }
 
@@ -461,6 +505,28 @@ void *traitement_thread(void *arg) {
   /* C'est pas le role de msg_bien_forme de faire ca? */
   if ( (strcmp (lu, "GET ")) != 0) {
     close (c->sock);
+
+    
+  if (pthread_mutex_lock(&mutex_cpt) != 0) {
+    perror("pthread_mutex_lock(mutex_cpt)");
+    exit(1);
+  }
+  cpt--;
+  if (pthread_mutex_unlock(&mutex_cpt) != 0) {
+    perror("pthread_mutex_unlock(mutex_cpt)");
+    exit(1);
+  }
+  if(pthread_mutex_lock(&mutex_thread) != 0) {
+    perror("pthread_mutex_lock(mutex_thread");
+    exit(1);
+  }
+  free_client[c->index] = CL_FREE;
+  if(pthread_mutex_unlock(&mutex_thread) != 0) {
+    perror("pthread_mutex_unlock(mutex_thread");
+    exit(1);
+  }
+
+
     return NULL;
   }
 
@@ -505,13 +571,34 @@ void *traitement_thread(void *arg) {
     printf ("ficher : %s pas ouvrable\n", fichier);
 #endif
     close (c->sock);
+
+    
+  if (pthread_mutex_lock(&mutex_cpt) != 0) {
+    perror("pthread_mutex_lock(mutex_cpt)");
+    exit(1);
+  }
+  cpt--;
+  if (pthread_mutex_unlock(&mutex_cpt) != 0) {
+    perror("pthread_mutex_unlock(mutex_cpt)");
+    exit(1);
+  }
+  if(pthread_mutex_lock(&mutex_thread) != 0) {
+    perror("pthread_mutex_lock(mutex_thread");
+    exit(1);
+  }
+  free_client[c->index] = CL_FREE;
+  if(pthread_mutex_unlock(&mutex_thread) != 0) {
+    perror("pthread_mutex_unlock(mutex_thread");
+    exit(1);
+  }
+
     return NULL;
   }
 
   /* tester si l'ob a les bon droits sur le fichier */
-  if  ( (st.st_mode & S_IRGRP) == 1) {
+  if  ( (st.st_mode & S_IRGRP) != S_IRGRP) {
 
-        lu = "HTTP/1.1 403 FORBIDDEN\nContent-Type: text/html\n\n<html><body>\n\n<h1>404</h1>\n<h2>Not Found</h2>\n</body></html>";
+        lu = "HTTP/1.1 403 FORBIDDEN\nContent-Type: text/html\n\n<html><body>\n\n<h1>403</h1>\n<h2>FORBIDDEN</h2>\n</body></html>";
     if(send(c->sock,lu, strlen (lu)
 	    , 0) < 0) {
       perror("send()");
@@ -529,6 +616,27 @@ void *traitement_thread(void *arg) {
 #endif
     
     close (c->sock);
+
+    
+  if (pthread_mutex_lock(&mutex_cpt) != 0) {
+    perror("pthread_mutex_lock(mutex_cpt)");
+    exit(1);
+  }
+  cpt--;
+  if (pthread_mutex_unlock(&mutex_cpt) != 0) {
+    perror("pthread_mutex_unlock(mutex_cpt)");
+    exit(1);
+  }
+  if(pthread_mutex_lock(&mutex_thread) != 0) {
+    perror("pthread_mutex_lock(mutex_thread");
+    exit(1);
+  }
+  free_client[c->index] = CL_FREE;
+  if(pthread_mutex_unlock(&mutex_thread) != 0) {
+    perror("pthread_mutex_unlock(mutex_thread");
+    exit(1);
+  }
+
     return NULL;
   }
    
