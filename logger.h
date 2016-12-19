@@ -35,11 +35,11 @@
 /* Structure containing all information needed in logs */
 typedef struct {
 	char caddr[ADD_SIZE]; /* client information */
-	char time[TIM_SIZE]; /* time of request */
-	char spid[PID_SIZE]; /* server pid */
-	char thid[PID_SIZE]; /* thread id */
-	char line[LIN_SIZE]; /* first line of request */
-	char sret[RET_SIZE]; /* 3digits return code */
+	char time [TIM_SIZE]; /* time of request */
+	char spid [PID_SIZE]; /* server pid */
+	char thid [PID_SIZE]; /* thread id */
+	char line [LIN_SIZE]; /* first line of request */
+	char sret [RET_SIZE]; /* 3digits return code */
 	char rsize[SIZ_SIZE]; /* request size */
 } Loginfo;
 
@@ -49,12 +49,12 @@ void WriteLog(Loginfo *l, char* filename);
 
 /* Functions to set Loginfo struct fields. *
  * Those functions are thread safe */
-void SetLogAddr(Loginfo *l, const struct in_addr *csin);
-void SetLogTime(Loginfo *l);
-void SetLogPid(Loginfo *l);
-void SetLogTid(Loginfo *l);
-void SetLogLine(Loginfo *l, const char* line);
-void SetLogSret(Loginfo *l, const unsigned int r);
+void SetLogAddr (Loginfo *l, const struct in_addr *csin);
+void SetLogTime (Loginfo *l);
+void SetLogPid  (Loginfo *l);
+void SetLogTid  (Loginfo *l);
+void SetLogLine (Loginfo *l, const char* line);
+void SetLogSret (Loginfo *l, const unsigned int r);
 void SetLogRsize(Loginfo *l, const unsigned int s);
 
 #endif

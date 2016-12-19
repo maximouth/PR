@@ -86,22 +86,6 @@ int main (int argc, char ** argv) {
   
   printf ("Serveur en ecoute\n");
   printf ("Le serveur peut etre stope en tapant \"QUIT\" suivi de ENTREE\n");
-
-  /*  remplir le tableau de type mime */
-  tab_ext = parse_file( &count);
-#ifdef DEBUG
-  printf( "tableau des extentions rempli\n");
-  fflush(stdout);
-#endif
-
-  int i = 0;
-  
-  for ( i = 0; i < count; ++i)  {
-    printf ("ext : %s, nom %s\n", tab_ext[i]->extension,
-	    tab_ext[i]->nom);
-    fflush (stdout);
-  }
-  
   
   
   stop_flag = 1;
@@ -368,53 +352,15 @@ void *traitement_client(void *client) {
 
 #ifdef DEBUG
   printf ("ext : %s\n", ext);
-  // printf ("type_mime %s\n", type_mime (ext));
 #endif
-
-  /* recup le type mime */
-  /* type_mime (ext, ret); */
-  printf ("type mime : %s\n", ret);
-  ////********  ICCII ******/
-  /*
-    if(send(c->sock, ret, strlen (ext)
-    , 0) < 0) {
-    perror("send()");
-    exit(1);
-    }
-  */
-
+  
   while (read (fd, buffer, BUF_SIZE) != 0) {
     if(send(c->sock,buffer, strlen (buffer)
 	    , 0) < 0) {
       perror("send()");
       exit(1);
-    }
-      
+    }      
   }
-  
-  /*  
-      lire la requette :
-      -> stocker le nom de fichier a lire
-      --> GET_/nomfichier_XXXXX
-      essayer de l'ouvrir
-      -> si pas possible 404 
-      -> si possible 200 
-      
-      lire type mime du fichier (fonction a coté)
-      et l'afficher
-
-      si 200 (
-      while((c = fgetc(fp)) != EOF)  // tant que l'on est pas arrivé à la fin du fichier
-      if(send(c->sock, c, 1, 0) < 0) {
-      perror("send() fichier");
-      exit(1);
-      }
-      )
-       
-      
-  */  
-
-  /* fin du thread / connexion liberer l'espace pour les nouveau client  */
 
   /* prednre le tableau  */
   if (pthread_mutex_lock (&mutex_thread) < 0) {
@@ -434,7 +380,6 @@ void *traitement_client(void *client) {
     perror ("unlock mutex_thread thread");
     exit (1);
   }
-
   
   /* prednre le cpt  */
   if (pthread_mutex_lock (&mutex_cpt) < 0) {
@@ -482,7 +427,7 @@ void *traitement_thread(void *arg) {
   char *lu = malloc (40 * sizeof (char));
   char *fichier = malloc (40 * sizeof (char));
   struct stat st;
-
+  char *requete = malloc (BUF_SIZE * sizeof (char));
   
   tab_ext =  (mr_mime**) malloc (1500 * sizeof (mr_mime*));
 #ifdef DEBUG
@@ -507,6 +452,10 @@ void *traitement_thread(void *arg) {
   fflush(stdout);
 #endif
 
+  /* garder uen copie de la requete intacte */
+  strcpy (requete, buffer);
+
+  /* recup le type de requete */
   lu = strtok (buffer, "/");
 
   /* C'est pas le role de msg_bien_forme de faire ca? */
@@ -515,12 +464,28 @@ void *traitement_thread(void *arg) {
     return NULL;
   }
 
+  /* recup le nom du fichier */
   fichier = strtok (NULL, " ");  
 #ifdef DEBUG
   printf ("ficher : %s\n", fichier);
 #endif
 
 
+  /* recuperer les infos du fichier */
+  stat (fichier, &st);
+
+  
+  /* recuperer info pour le fichier le log  */
+  SetLogTime  (&c -> loginfo);
+  SetLogPid   (&c -> loginfo);
+  SetLogTid   (&c -> loginfo);  
+  SetLogLine  (&c -> loginfo, strtok (requete, "\n"));
+  SetLogSret  (&c -> loginfo, 200);
+  SetLogRsize (&c -> loginfo, st.st_size);
+  
+
+
+  
   /* test if FIle exist */
   if ( (fd = open (fichier, O_RDONLY)) == -1) {
     lu = "HTTP/1.1 404 Not Found\nContent-Type: text/html\n\n<html><body>\n\n<h1>404</h1>\n<h2>Not Found</h2>\n</body></html>";
@@ -530,26 +495,35 @@ void *traitement_thread(void *arg) {
       exit(1);
     }
 
+    SetLogSret (&c->loginfo, 404);
+
+    /* Write logs */
+    WriteLog(&c->loginfo, NULL);
+
+    
 #ifdef DEBUG
     printf ("ficher : %s pas ouvrable\n", fichier);
 #endif
-    
     close (c->sock);
     return NULL;
   }
 
-  /* recuperer les infos du fichier */
-  stat (fichier, &st);
   /* tester si l'ob a les bon droits sur le fichier */
   if  ( (st.st_mode & S_IRGRP) == 1) {
 
-        lu = "HTTP/1.1 404 Not Found\nContent-Type: text/html\n\n<html><body>\n\n<h1>404</h1>\n<h2>Not Found</h2>\n</body></html>";
+        lu = "HTTP/1.1 403 FORBIDDEN\nContent-Type: text/html\n\n<html><body>\n\n<h1>404</h1>\n<h2>Not Found</h2>\n</body></html>";
     if(send(c->sock,lu, strlen (lu)
 	    , 0) < 0) {
       perror("send()");
       exit(1);
     }
 
+    SetLogSret (&c->loginfo, 403);
+
+    /* Write logs */
+    WriteLog(&c->loginfo, NULL);
+
+    
 #ifdef DEBUG
     printf ("ficher : %s pas ouvrable\n", fichier);
 #endif
@@ -559,55 +533,46 @@ void *traitement_thread(void *arg) {
   }
    
   /* If file exist  */
-  lu ="HTTP/1.1 200 OK\nContent-Type: c";
-  if(send (c->sock, lu,
+  lu = "HTTP/1.1 200 OK\nContent-Type: c";
+  if (send (c->sock, lu,
 	   strlen (lu), 0) < 0) {
     perror("send()");
     exit(1);
   }
 
-  /* search file extension in mime type   */
+  
+  
+  /* recuperer l'extension du fichier  */
   strtok (fichier, ".");
   ext = strtok (NULL, ".");
 
 #ifdef DEBUG
   printf ("ext : %s\n", ext);
-  // printf ("type_mime %s\n", type_mime (ext));
 #endif
 
   
   /*  remplir le tableau de type mime */
-  tab_ext = parse_file( &count);
+    tab_ext = parse_file( &count);
 #ifdef DEBUG
   printf( "tableau des extentions rempli\n");
   fflush(stdout);
 #endif
   
-  int i = 0;
+  /* int i = 0; */
   
-  for ( i = 0; i < count; ++i)  {
-    printf ("ext : %s, nom %s\n", tab_ext[i]->extension,
-	    tab_ext[i]->nom);
-    fflush (stdout);
-  }
+  /* for ( i = 0; i < count; ++i)  { */
+  /*   printf ("ext : %s, nom %s\n", tab_ext[i]->extension, */
+  /* 	    tab_ext[i]->nom); */
+  /*   fflush (stdout); */
+  /* } */
 
   type_mime (tab_ext, ext , nom, count);
 #ifdef DEBUG
-  printf("type mime trouve\n");
+  printf ("type mime trouvé %sxx\n", nom);
+  fflush (stdout);
 #endif
 
-  printf ("type mime trouvé %s\n", nom);
 
-
-  SetLogTime(&c->loginfo);
-  SetLogPid(&c->loginfo);
-  SetLogTid(&c->loginfo);
-
-  /* Open file */
-  if ((fd = open(fichier, O_RDONLY)) < 0) {
-    perror("open()");
-    exit(1);
-  }
 
   
   
@@ -632,8 +597,10 @@ void *traitement_thread(void *arg) {
   /* Write logs */
   WriteLog(&c->loginfo, NULL);
 
+  
   /* Free ressources */
   close(c->sock);
+
   if (pthread_mutex_lock(&mutex_cpt) != 0) {
     perror("pthread_mutex_lock(mutex_cpt)");
     exit(1);
@@ -652,7 +619,7 @@ void *traitement_thread(void *arg) {
     perror("pthread_mutex_unlock(mutex_thread");
     exit(1);
   }
-
+  
   return NULL;
 }
 
