@@ -66,6 +66,11 @@ int main (int argc, char ** argv) {
   sinf.sin_addr.s_addr = htonl(INADDR_ANY);
   sinf.sin_port = htons ( num_port );
   sinf.sin_family = AF_INET;
+  /* MAYBE we need : 
+  true = 1;
+  setsockopt(sock,SOL_SOCKET,SO_REUSEADDR,&true,sizeof(int))
+  */
+
 
   /* bind entre le descipteur de socket et la structure  */
   if (bind (sockd, (struct sockaddr *) &sinf, sizeof(sinf)) < 0) {
@@ -98,8 +103,6 @@ int main (int argc, char ** argv) {
     FD_SET(STDIN_FILENO, &rdfs);
     FD_SET(sockd, &rdfs);
 
-    printf("\t\t\t --- PRESELECT ---\n");
-
     /* Select from rdfs *
      * Use of select in order to be able  *
      * to receive commands from STDIN */
@@ -107,8 +110,6 @@ int main (int argc, char ** argv) {
       perror("select()");
       exit(1);
     }
-
-    printf("\t\t\t --- POSTSELECT ---\n");
 
     /* Input on STDIN */
     if (FD_ISSET(STDIN_FILENO, &rdfs)) {
@@ -163,41 +164,24 @@ int main (int argc, char ** argv) {
 		
 	ind = 0;
 	/* prendre le tableau  */
-	/* Mutex_cpt est locke plus haut, et pas libere
-	 * Celui ne sert a rien au final! 
-	 * TODO : Soit relacher le compteur plus tot,
-	 * soit virer ce mutex
 	 if (pthread_mutex_lock (&mutex_thread) < 0) {
 	 perror ("lock mutex_thread seveur");
 	 exit (1);
 	 }
-	*/
-
 	while (free_client[ind] == CL_BUSY) {
 	  ind ++;
 	}
 	/* le marquer comme pris */
 	free_client[ind] = CL_BUSY;
-     
 	/* relacher le tableau  */
-	/* Meme reflexion que plus haut 
-	   if (pthread_mutex_unlock (&mutex_thread) < 0) {
+	if (pthread_mutex_unlock (&mutex_thread) < 0) {
 	   perror ("unlock mutex_thread seveur");
 	   exit (1);
-	   }
-	*/
+	}
+
 	clients[ind].sock = client_sock;
 	clients[ind].index = ind;
 	clients[ind].csinf = csin;
-	/* Needs to be removed since memset(0) is done in thread
-	   SetLogAddr(&clients[ind].loginfo, &csin.sin_addr);
-	   printf("ADDRESS : %s\n",clients[ind].loginfo.caddr);
-	   printf("ADDRESS : %d\n",clients[ind].index);
-	   fflush(stdout);
-	   SetLogPid(&clients[ind].loginfo);
-	   printf("PID TAMERE : %s\n",clients[ind].loginfo.spid);
-	   printf("PID : %d\n", (int) getpid());
-	*/
 	
 	/* Create pthread associated with the new client */
 	fflush(stdout);
@@ -217,51 +201,7 @@ int main (int argc, char ** argv) {
     } /* End case input on connection socket */
   } /* End main loop -> while(stop_flag) */
 
-   
-  /*   variable partagées dans les threads
-       -> mettre un mutex_cpt pour la gestion du compteur de clients
-
-       ->creer la socket en UDP
-       ->remplir les informations
-       ->faire un bind pour les lier (detruire la connextion existance 
-       si il en existe une
-
-       -->lire en continue de flux dentrée :
-
-       ---> attendre d'avoir un message bien formé dans le buffer
-       GET /chemin HTTP/1.1\nHost: XXX.X.X.X\n\n  
-       -> le retirer du buffer (chiant... )
-       --> copier de buff [size] a size max dans buff [0] 
-       puis remplir le reste de 0 
-       laisser l'offset du tableau a offset - size 
-
-       une fois un message bien formé arrive :
-       -> incrementer cpt, test et tout
-       -> creer un thread avec le message en argument
-       sinon rien 
-
-
-       dans le thread :
-       -> decoder le message
-       -> chercher le fichier
-       -> si il existe et accesible: 
-       repondre : "HTTP/1.1 200 OK" 
-       -> si il existe et pas les droit: 
-       repondre : "HTTP/1.1 403 Forbidden" 
-       -> si il n'existe pas: 
-       repondre : "HTTP/1.1 404 not found" 
-       
-       -> chercher dans le fichier mime.types le typer de fichier
-       repondre : Content-Type: (le type trouvé)
-
-       -> envoyer la reponse au client (ip dans la requette)
-
-       -> decrementer cpt (mutex_cpt et tout)
-
-       -> finir le thread
-
-  */
-  
+  /* TODO : Join pthread before terminating? */
   close(sockd);
   return 0;
 }
