@@ -23,13 +23,18 @@
 #include "parse.h"
 
 /* defines */
-#define BUF_SIZE 701
+#define BUF_SIZE 700
 
 /* mutex pour proteger le compteur de client  */
 static pthread_mutex_t mutex_thread = PTHREAD_MUTEX_INITIALIZER;
 
 /* mutex pour proteger le compteur de client  */
 static pthread_mutex_t mutex_cpt = PTHREAD_MUTEX_INITIALIZER;
+
+/* mutex pour proteger strtok qui n'est pas thread-safe
+ * /!\ TOUS les appels a strtok sur une chaine donnee,
+ * DOIVENT etre fait au sein de la meme section critique! */
+pthread_mutex_t mutex_strtok = PTHREAD_MUTEX_INITIALIZER;
 
 
 /* nombre de client en simultané */
@@ -42,6 +47,6 @@ int *free_client;
 /* Prototypes */
 void *traitement_client(void *client);
 void *traitement_thread(void *arg);
-int msg_bien_forme (char *buff, int taille);
+int msg_bien_forme (char *buff);
 
 #endif

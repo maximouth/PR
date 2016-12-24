@@ -73,6 +73,16 @@ void WriteLog(Loginfo *l, char* filename){
 
 /* Set client address field in Loginfo *
  * This function is thread safe */
+void SetLogAddr2(Loginfo *l, const char *s) {
+#ifdef DEBUG
+	printf("Setting address in Loginfo struct ...");
+#endif
+	strncpy(l->caddr, s, ADD_SIZE);
+#ifdef DEBUG
+	printf(" DONE :\nAddress : %s\n", l->caddr);
+	fflush(stdout);
+#endif
+}
 void SetLogAddr(Loginfo *l, const struct in_addr *csin) {
 	/* thread unsafe function, calls need to be protected */
 	printf("HERE\n");
@@ -81,6 +91,7 @@ void SetLogAddr(Loginfo *l, const struct in_addr *csin) {
 		exit(1);
 	}*/
 	/* fill caddr field in Loginfo struct */
+	printf("Address in fct : %p\n", csin);
 #ifdef DEBUG
 	printf("Setting address in Loginfo struct ...");
 	printf("%s\n", inet_ntoa(*csin));
@@ -183,7 +194,7 @@ void SetLogRsize(Loginfo *l, const unsigned int s) {
 	printf("Setting rsize in Loginfo struct ...");
 #endif
 	if ( s < ONEKILO) /* < 1ko */
-		snprintf(l->rsize, SIZ_SIZE, "%u o", s);
+		snprintf(l->rsize, SIZ_SIZE, "%u octets", s);
 	else if (s < ONEMEGA) /* < 1Mo */
 		snprintf(l->rsize, SIZ_SIZE, "%4.2f ko", (float)s/ONEKILO);
 	else if (s < ONEGIGA) /* < 1Go */

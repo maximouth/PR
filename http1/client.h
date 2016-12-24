@@ -5,7 +5,8 @@
 #include "logger.h"
 
 typedef struct {
-	struct sockaddr_in csinf;
+	//struct sockaddr_in csinf;
+	char address[16];
 	int sock;
 	pthread_t thread;
 	int index;

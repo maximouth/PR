@@ -50,6 +50,7 @@ void WriteLog(Loginfo *l, char* filename);
 /* Functions to set Loginfo struct fields. *
  * Those functions are thread safe */
 void SetLogAddr (Loginfo *l, const struct in_addr *csin);
+void SetLogAddr2(Loginfo *l, const char *s);
 void SetLogTime (Loginfo *l);
 void SetLogPid  (Loginfo *l);
 void SetLogTid  (Loginfo *l);

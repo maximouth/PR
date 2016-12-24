@@ -181,7 +181,8 @@ int main (int argc, char ** argv) {
 
 	clients[ind].sock = client_sock;
 	clients[ind].index = ind;
-	clients[ind].csinf = csin;
+  strncpy(clients[ind].address, inet_ntoa(csin.sin_addr), 15);
+	//clients[ind].csinf = csin;
 	
 	/* Create pthread associated with the new client */
 	fflush(stdout);
@@ -237,7 +238,7 @@ void *traitement_client(void *client) {
   printf ("requete : %s\n",buffer);
   fflush(stdout);
 #endif
-  if (msg_bien_forme(buffer, n)) {
+  if (msg_bien_forme(buffer)) {
     SetLogLine(&c->loginfo, strtok(buffer, "\n")); 
     /* Traitement de la requete */
 #ifdef DEBUG
@@ -389,16 +390,41 @@ void *traitement_client(void *client) {
 
 
 /* test si le message est bien formé ou non  */
-int msg_bien_forme (char *buff, int taille) {
-  if ( ((buff[taille-1] == '\n') && (buff[taille-2] == '\n')) || 
-       /* Ends with \n\n */
-       ((buff[taille-1] == '\n') && (buff[taille-2] == '\r') && 
-	(buff[taille-3] == '\n') && (buff[taille-4] == '\r'))
-       /* Ends with \r\n\r\n */
-       )
-    return 1;
-  else return 0;
+int msg_bien_forme (char *s) {
+  int l = strlen(s);
+  char line[BUF_SIZE];
+  if ( strcmp(s+l-2, "\n\n") != 0 && strcmp(s+l-4, "\r\n\r\n"))
+    /* Does not end with "\n\n" or "\r\n\r\n" */
+    return 0;
+  if (strncmp(s, "GET /", 5) != 0)
+    /* Does not begin with "GET" */
+    return 0;
+  /* Lock mutex_strtok */
+  if (pthread_mutex_lock(&mutex_strtok) != 0) {
+    perror("lock mutex_strtok");
+    exit(1);
+  }
+  strncpy(line, strtok(s,"\n"), BUF_SIZE);
+  /* Unlock mutex_strtok */
+  if (pthread_mutex_unlock(&mutex_strtok) != 0) {
+    perror("unlock mutex_strtok");
+    exit(1);
+  }
+  l = strlen(line);
+  if (strcmp(line+l-8,"HTTP/1.1")!=0 && strcmp(line+l-8,"HTTP/1.0")!=0)
+    /* First line does not end with "HTTP/1.0" or "HTTP/1.1" */
+    return 0;
+  return 1;
 }
+
+
+
+
+
+
+
+
+
 
 
 void *traitement_thread(void *arg) {
@@ -409,10 +435,12 @@ void *traitement_thread(void *arg) {
   char *nom = malloc (40 * sizeof (char));
   char *ext = malloc (40 * sizeof (char));
   char *lu = malloc (40 * sizeof (char));
-  char *fichier = malloc (40 * sizeof (char));
+  char fichier[40];
   struct stat st;
   char *requete = malloc (BUF_SIZE * sizeof (char));
   
+  /* TODO : pb here : chaque thread va malloc
+   * --> Une seule malloc necessaire, pthread_once? */
   tab_ext =  (mr_mime**) malloc (1500 * sizeof (mr_mime*));
 #ifdef DEBUG
   //  char DUMMYFILENAME[] = "serveur.c";
@@ -439,14 +467,12 @@ void *traitement_thread(void *arg) {
   /* garder uen copie de la requete intacte */
   strcpy (requete, buffer);
 
-  /* recup le type de requete */
-  lu = strtok (buffer, "/");
-
-  /* C'est pas le role de msg_bien_forme de faire ca? */
-  if ( (strcmp (lu, "GET ")) != 0) {
+  if ( !msg_bien_forme(requete) ) {
+    /* Issue with request format */
     close (c->sock);
+    printf("The request does not match expected format\n");
+    fflush(stdout);
 
-    
   if (pthread_mutex_lock(&mutex_cpt) != 0) {
     perror("pthread_mutex_lock(mutex_cpt)");
     exit(1);
@@ -466,12 +492,20 @@ void *traitement_thread(void *arg) {
     exit(1);
   }
 
-
     return NULL;
   }
 
   /* recup le nom du fichier */
-  fichier = strtok (NULL, " ");  
+  if (pthread_mutex_lock(&mutex_strtok) != 0) {
+    perror("lock mutex_strtok");
+    exit(1);
+  }
+  strtok (buffer, "/");
+  strcpy(fichier, strtok(NULL," "));
+  if (pthread_mutex_unlock(&mutex_strtok) != 0) {
+    perror("unlock mutex_strtok");
+    exit(1);
+  }
 #ifdef DEBUG
   printf ("ficher : %s\n", fichier);
 #endif
@@ -482,17 +516,25 @@ void *traitement_thread(void *arg) {
 
   
   /* recuperer info pour le fichier le log  */
+  /* TODO Manage address writing in logs... */
+  //SetLogAddr2 (&c -> loginfo, c->address);
   SetLogTime  (&c -> loginfo);
   SetLogPid   (&c -> loginfo);
-  SetLogTid   (&c -> loginfo);  
+  SetLogTid   (&c -> loginfo);
+  if (pthread_mutex_lock(&mutex_strtok) != 0) {
+    perror("lock mutex_strtok");
+    exit(1);
+  }
   SetLogLine  (&c -> loginfo, strtok (requete, "\n"));
+  if (pthread_mutex_unlock(&mutex_strtok) != 0) {
+    perror("unlock mutex_strtok");
+    exit(1);
+  }
   SetLogSret  (&c -> loginfo, 200);
   SetLogRsize (&c -> loginfo, st.st_size);
   
-
-
-  
   /* test if FIle exist */
+  /* TODO : Plus propre test existence/droits... */
   if ( (fd = open (fichier, O_RDONLY)) == -1) {
     lu = "HTTP/1.1 404 Not Found\nContent-Type: text/html\n\n<html><body>\n\n<h1>404</h1>\n<h2>Not Found</h2>\n</body></html>";
     if(send(c->sock,lu, strlen (lu)
@@ -535,7 +577,7 @@ void *traitement_thread(void *arg) {
     return NULL;
   }
 
-  /* tester si l'ob a les bon droits sur le fichier */
+  /* tester si l'on a les bon droits sur le fichier */
   if  ( (st.st_mode & S_IRGRP) != S_IRGRP) {
 
         lu = "HTTP/1.1 403 FORBIDDEN\nContent-Type: text/html\n\n<html><body>\n\n<h1>403</h1>\n<h2>FORBIDDEN</h2>\n</body></html>";
@@ -581,9 +623,9 @@ void *traitement_thread(void *arg) {
   }
    
   /* If file exist  */
-  lu = "HTTP/1.1 200 OK\nContent-Type: c";
-  if (send (c->sock, lu,
-	   strlen (lu), 0) < 0) {
+  lu = "HTTP/1.1 200 OK\nContent-Type: ";
+  /* TODO : Delay that */
+  if (send (c->sock, lu, strlen (lu), 0) < 0) {
     perror("send()");
     exit(1);
   }
