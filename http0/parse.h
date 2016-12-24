@@ -17,12 +17,12 @@ typedef struct {
 } mr_mime;
 
 
-/* find the mime type of an file extension  */
-/*  parse the mime/type file and store the results in a Mr_mime tab */
-mr_mime ** parse_file ( int *count);
+/* find the mime type of a file extension
+ *parse the mime/type file and store the results in a Mr_mime tab */
+mr_mime ** parse_file (int *count);
 
-/*  search in the tab to find the extension         */
-/*  if not in the mime/type file return text/plain  */
+/*  search in the tab to find the extension
+ *  if not in the mime/type file return text/plain  */
 int type_mime (mr_mime **tab, char * ext, char *res, int max);
 
 #endif
