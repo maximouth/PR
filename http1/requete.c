@@ -18,7 +18,6 @@ void *traitement_requete (void *arg) {
 #ifdef DEBUG
   printf("In thread request, thread ID : %d\n", pthread_self());
 #endif
-
   /* Gettigng filename */
   if (pthread_mutex_lock(&mutex_strtok) != 0) {
     perror("lock mutex_strtok");
@@ -31,10 +30,13 @@ void *traitement_requete (void *arg) {
     exit(1);
   }
 
-  /* Getting file's stats */
+  /* Getting file's stats.
+   * Also checks if file exists
+   * and if we can access it. 
+   * Set flag accordingly. */
   if (stat (filename, &st) < 0) {
   	if (errno == EACCES) {
-  		code_flag = FLAG_403; /* No read permission */
+  		code_flag = FLAG_403; /* No read permission on the path*/
   	}
   	else {
   		code_flag = FLAG_404; /* File does not exist */
@@ -43,7 +45,7 @@ void *traitement_requete (void *arg) {
   if  (st.st_mode&S_IRUSR)
   	code_flag = FLAG_200; /* File exist and can be read */
   else
-  	code_flag = FLAG_403; /* No read permission */
+  	code_flag = FLAG_403; /* No read permission on the file*/
 
 
   /* Set Loginfos */
@@ -62,7 +64,7 @@ void *traitement_requete (void *arg) {
   SetLogSret  (&r -> loginfo, 200);
   SetLogRsize (&r -> loginfo, st.st_size);
 
-
+  /* Sets answer depending on return code */
   if(code_flag&FLAG_200) {
   	if ( (fd=open(filename, O_RDONLY)) < 0) {
   		perror("read()");
@@ -77,12 +79,12 @@ void *traitement_requete (void *arg) {
   	SetLogSret(&r->loginfo, 200);
   }
   else if (code_flag&FLAG_403) {
-  	strcat(header, "403 Forbidden\n\n<html><body>\n\n<h1>403</h1>\n<h2>Forbidden</h2>\n</body></html>");
+  	strcat(header, "403 Forbidden\nContent-Length: 59\n\n<html><body>\n<h1>403</h1>\n<h2>Forbidden</h2>\n</body></html>");
   	SetLogSret(&r->loginfo, 403);
 
   }
   else {
-  	strcat(header, "404 Not Found\n\n<html><body>\n\n<h1>404</h1>\n<h2>Not Found</h2>\n</body></html>");
+  	strcat(header, "404 Not Found\nContent-Length: 59\n\n<html><body>\n<h1>404</h1>\n<h2>Not Found</h2>\n</body></html>");
   	SetLogSret(&r->loginfo, 404);
   }
 
@@ -93,15 +95,14 @@ void *traitement_requete (void *arg) {
   	perror("mutex lock : mutex_self");
   	exit(1);
   }
-  /* Is that really necessary..? */
+  /* TODO : Is that really necessary..? */
   pthread_mutex_destroy(&r->mutex_self)
   /* --------------------------------------------------------------------------- */
-  /* Send header and write logs */
+  /* Send header+file and write logs */
   if(send(r->client->sock, header, strlen(header), 0) < 0) {
       perror("send()");
       exit(1);
   }
-  WriteLog(r->loginfo);
   if (code_flag&FLAG_200) {
   	/* Read and send whole file */
   	while ( (n=read(fd, buffer, BUF_SIZE-1)) > 0) {
@@ -120,6 +121,7 @@ void *traitement_requete (void *arg) {
   		exit(1);
   	}
   }
+  WriteLog(r->loginfo);
   /* --------------------------------------------------------------------------- */
   /* Unlock mutex for next request to execute */
   if (pthread_mutex_lock(r->client->mutex_nbRequest) != 0) {
@@ -135,7 +137,7 @@ void *traitement_requete (void *arg) {
   }
   else {
   	/* There arent anymore request to treat */
-  	/* TODO */
+  	/* TODO : make sure "main" thread does not lock mutex associated with new request */
   }
   if (pthread_mutex_unlock(r->client->mutex_nbRequest) != 0) {
   	perror("mutex unlock : mutex_nbRequest");
