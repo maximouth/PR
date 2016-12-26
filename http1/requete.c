@@ -13,10 +13,11 @@ void *traitement_requete (void *arg) {
   /* Request variables */
   char header[ANS_SIZE] = "HTTP/1.1 ";
   unsigned int code_flag = 0;
+  Loginfo loginfo;
 
 
 #ifdef DEBUG
-  printf("In thread request, thread ID : %d\n", pthread_self());
+  printf("In thread request, thread ID : %lu\n", pthread_self());
 #endif
   /* Gettigng filename */
   if (pthread_mutex_lock(&mutex_strtok) != 0) {
@@ -48,21 +49,20 @@ void *traitement_requete (void *arg) {
   	code_flag = FLAG_403; /* No read permission on the file*/
 
 
-  /* Set Loginfos */
-  SetLogTime  (&r -> loginfo);
-  SetLogPid   (&r -> loginfo);
-  SetLogTid   (&r -> loginfo);
+  /* Set Loginfo */
+  SetLogTime  (&loginfo);
+  SetLogPid   (&loginfo);
+  SetLogTid   (&loginfo);
   if (pthread_mutex_lock(&mutex_strtok) != 0) {
     perror("lock mutex_strtok");
     exit(1);
   }
-  SetLogLine  (&r -> loginfo, strtok (requete, "\n"));
+  SetLogLine  (&loginfo, strtok (r->request, "\n"));
   if (pthread_mutex_unlock(&mutex_strtok) != 0) {
     perror("unlock mutex_strtok");
     exit(1);
   }
-  SetLogSret  (&r -> loginfo, 200);
-  SetLogRsize (&r -> loginfo, st.st_size);
+  SetLogRsize (&loginfo, st.st_size);
 
   /* Sets answer depending on return code */
   if(code_flag&FLAG_200) {
@@ -74,29 +74,29 @@ void *traitement_requete (void *arg) {
   	/* TODO : content type shit */
   	strcat(header, "Content-Type: text/html\n"); /*TODO CHANGE THIS SHIT */
   	strcat(header, "Content-Length: ");
-  	sprintf(filesize,"%d\n\n", st.st_size);
+  	sprintf(filesize,"%lu\n\n", st.st_size);
   	strcat(header,filesize);
-  	SetLogSret(&r->loginfo, 200);
+  	SetLogSret(&loginfo, 200);
   }
   else if (code_flag&FLAG_403) {
-  	strcat(header, "403 Forbidden\nContent-Length: 59\n\n<html><body>\n<h1>403</h1>\n<h2>Forbidden</h2>\n</body></html>");
-  	SetLogSret(&r->loginfo, 403);
+  	strcat(header, "403 Forbidden\nContent-Length: 59\n\n<html><body>\n<h1>403</h1>\n<h2>Forbidden</h2>\n</body></html>\n");
+  	SetLogSret(&loginfo, 403);
 
   }
   else {
-  	strcat(header, "404 Not Found\nContent-Length: 59\n\n<html><body>\n<h1>404</h1>\n<h2>Not Found</h2>\n</body></html>");
-  	SetLogSret(&r->loginfo, 404);
+  	strcat(header, "404 Not Found\nContent-Length: 59\n\n<html><body>\n<h1>404</h1>\n<h2>Not Found</h2>\n</body></html>\n");
+  	SetLogSret(&loginfo, 404);
   }
 
 
   /* --------------------------------------------------------------------------- */
   /* Wait previous request over */
-  if (pthread_mutex_lock(r->mutex_self) != 0) {
+  if (pthread_mutex_lock(&r->mutex_self) != 0) {
   	perror("mutex lock : mutex_self");
   	exit(1);
   }
   /* TODO : Is that really necessary..? */
-  pthread_mutex_destroy(&r->mutex_self)
+  pthread_mutex_destroy(&r->mutex_self);
   /* --------------------------------------------------------------------------- */
   /* Send header+file and write logs */
   if(send(r->client->sock, header, strlen(header), 0) < 0) {
@@ -121,16 +121,16 @@ void *traitement_requete (void *arg) {
   		exit(1);
   	}
   }
-  WriteLog(r->loginfo);
+  WriteLog(&loginfo, NULL);
   /* --------------------------------------------------------------------------- */
   /* Unlock mutex for next request to execute */
-  if (pthread_mutex_lock(r->client->mutex_nbRequest) != 0) {
+  if (pthread_mutex_lock(&r->client->mutex_nbRequest) != 0) {
   	perror("mutex lock : mutex_nbRequest");
   	exit(1);
   }
-  if (r->index <= r->client->nbRequest) {
+  if (r->index < r->client->nbRequest) {
   	/* If there are more request to treat */
-  	if (pthread_mutex_unlock (r->mutex_next) != 0) {
+  	if (pthread_mutex_unlock (&r->next->mutex_self) != 0) {
   		perror("mutex unlock : mutex_next");
   		exit(1);
   	}
@@ -139,10 +139,10 @@ void *traitement_requete (void *arg) {
   	/* There arent anymore request to treat */
   	/* TODO : make sure "main" thread does not lock mutex associated with new request */
   }
-  if (pthread_mutex_unlock(r->client->mutex_nbRequest) != 0) {
+  if (pthread_mutex_unlock(&r->client->mutex_nbRequest) != 0) {
   	perror("mutex unlock : mutex_nbRequest");
   	exit(1);
   }
   /* --------------------------------------------------------------------------- */
-  return;
+  return NULL;
 }

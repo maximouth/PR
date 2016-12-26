@@ -17,12 +17,14 @@ EXEC = serveur.x
 INCS = serveur.h \
        client.h \
        parse.h \
-       logger.h
+       logger.h \
+       requete.h
 
 #.c
 SOURCES = serveur.c\
 	  parse.c \
-	  logger.c
+	  logger.c \
+	  requete.c
 
 OBJS = $(SOURCES:.c=.o)
 

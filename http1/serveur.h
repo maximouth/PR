@@ -8,19 +8,20 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+
 #include <pthread.h>
 
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/select.h>
 #include <sys/stat.h>
-
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
 
 /* include .h de nous  */
 #include "parse.h"
+#include "requete.h"
 
 /* defines */
 #define BUF_SIZE 700
@@ -45,8 +46,8 @@ int cpt = 0;
 int *free_client;
   
 /* Prototypes */
-void *traitement_client(void *client);
-void *traitement_thread(void *arg);
+//void *traitement_client(void *client);
+void *traitement_client(void *arg);
 int msg_bien_forme (char *buff);
 
 #endif

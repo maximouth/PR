@@ -1,9 +1,10 @@
-#ifndef SERVER_H
-#define SERVER_H
+#ifndef REQUETE_H
+#define REQUETE_H
 
 #define _XOPEN_SOURCE 700
 
 #define ANS_SIZE 200
+#define REQ_SIZE 200
 
 #include <string.h>
 #include <pthread.h>
@@ -12,9 +13,10 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <signal.h>
+#include <errno.h>
 
 #include "logger.h"
-#include "client.h"
+//#include "client.h"
 
 #define FLAG_200 1
 #define FLAG_403 2
@@ -22,13 +24,25 @@
 
 extern pthread_mutex_t mutex_strtok;
 
-typedef struct{
+typedef struct {
+	//struct sockaddr_in csinf;
+	char address[16];
+	int sock;
+	pthread_t thread;
+	int index;
+	int nbRequest;
+	pthread_mutex_t mutex_nbRequest;/* TODO : Initialize this somewhere!!! */
+} Client;
+
+struct Request {
 	char request[REQ_SIZE];
 	unsigned int index;
-    Loginfo loginfo;
     Client *client;
     pthread_mutex_t mutex_self;
-    pthread_mutex_t mutex_next;
-} Request;
+    struct Request *next;
+};
+typedef struct Request Request;
+
+void *traitement_requete (void *arg);
 
 #endif
