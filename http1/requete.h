@@ -24,6 +24,8 @@
 
 extern pthread_mutex_t mutex_strtok;
 
+/* I have had to move the Client struct here... */
+
 typedef struct {
 	//struct sockaddr_in csinf;
 	char address[16];
@@ -31,7 +33,8 @@ typedef struct {
 	pthread_t thread;
 	int index;
 	int nbRequest;
-	pthread_mutex_t mutex_nbRequest;/* TODO : Initialize this somewhere!!! */
+	int reqOver;
+	pthread_mutex_t mutex_nbRequest;
 } Client;
 
 struct Request {

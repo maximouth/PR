@@ -213,10 +213,10 @@ int msg_bien_forme (char *s) {
   char line[BUF_SIZE];
   if ( strcmp(s+l-2, "\n\n") != 0 && strcmp(s+l-4, "\r\n\r\n"))
     /* Does not end with "\n\n" or "\r\n\r\n" */
-    return 0;
+    return -1
   if (strncmp(s, "GET /", 5) != 0)
     /* Does not begin with "GET" */
-    return 0;
+    return -1;
   /* Lock mutex_strtok */
   if (pthread_mutex_lock(&mutex_strtok) != 0) {
     perror("lock mutex_strtok");
@@ -229,10 +229,13 @@ int msg_bien_forme (char *s) {
     exit(1);
   }
   l = strlen(line);
-  if (strcmp(line+l-8,"HTTP/1.1")!=0 && strcmp(line+l-8,"HTTP/1.0")!=0)
-    /* First line does not end with "HTTP/1.0" or "HTTP/1.1" */
+  if (strcmp(line+l-8,"HTTP/1.0")==0)
+    /* First line ends with "HTTP/1.0"*/
     return 0;
-  return 1;
+  if (strcmp(line+l-8,"HTTP/1.1")==0)
+    /* First line ends with "HTTP/1.1"*/
+    return 1;
+  return -1;
 }
 
 
@@ -247,7 +250,7 @@ int msg_bien_forme (char *s) {
 void *traitement_client(void *arg){
   Client *c = (Client *) arg;
   char buffer[BUF_SIZE];
-  int rcv_val;
+  int rcv_val, msg_val;
   Request first;
   Request *current, *tmp;
   pthread_t *list;
@@ -261,6 +264,7 @@ void *traitement_client(void *arg){
   /* Setup client */
   pthread_mutex_init(&c->mutex_nbRequest,NULL);
   c->nbRequest = 0;
+  c->reqOver = 1;
 
   /* Setup request */
   current = &first;
@@ -274,15 +278,18 @@ void *traitement_client(void *arg){
 
   /* While client sends requests */
   while ( (rcv_val = recv(c->sock, buffer, BUF_SIZE-1, 0)) > 0) {
-    if (!msg_bien_forme(buffer)) {
+    if ( (msg_val=msg_bien_forme(buffer)) < 0) {
       /* Request does not match expected format */
-      close(c->sock);
       printf("The request does not match expected format\n");
       fflush(stdout);
       /* TODO : we need to chose whether we simply ignore improperly
-       * formatted request, or if we send() a message to the client */
+       * formatted request, or if we send() a message to the client
+       * Also, should we close connection, or wait for another request? */
       continue;
     }
+    /* TODO : case msg_val == 0 OR msg_val == 1
+     * Raise a flag or smthg to exit while! */
+
     /* Request is correctly formatted */
     if (strncmp(buffer,"GET",3)==0) {
       /* Setup Request structure */
@@ -322,19 +329,43 @@ void *traitement_client(void *arg){
       /* Case we need to fork and exec --> Q3 */
       /* TODO : QUESTION 3 */
       /* Idea : Use an other keyword than GET in request
-       * update msb_bien_forme according to new keyword */
+       * update msg_bien_forme according to new keyword */
     }
   }
   if (rcv_val < 0) {
     perror("recv()");
     exit(1);
   }
+
   /* TODO : CLEANUP JOB 
    * EVERY. SINGLE. CALLOC.
    * Follow chained list to do so */
 
-  /* TODO : handle end of connection
-   * Diminish number of clients and so on */
+  /* Ends connection */
+  close(c->sock);
+#ifdef DEBUG
+  printf("Closing connection client %d\n",c->index);
+  fflush(stdout);
+#endif
+  if (pthread_mutex_lock(&mutex_cpt) != 0) {
+    perror("pthread_mutex_lock(mutex_cpt)");
+    exit(1);
+  }
+  cpt--;
+  if (pthread_mutex_unlock(&mutex_cpt) != 0) {
+    perror("pthread_mutex_unlock(mutex_cpt)");
+    exit(1);
+  }
+  if(pthread_mutex_lock(&mutex_thread) != 0) {
+    perror("pthread_mutex_lock(mutex_thread");
+    exit(1);
+  }
+  free_client[c->index] = CL_FREE;
+  if(pthread_mutex_unlock(&mutex_thread) != 0) {
+    perror("pthread_mutex_unlock(mutex_thread");
+    exit(1);
+  }
+
   return NULL;
 }
 
