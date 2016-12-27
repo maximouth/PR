@@ -15,13 +15,16 @@ void *traitement_requete (void *arg) {
   unsigned int code_flag = 0;
   Loginfo loginfo;
 
+  /* fichier executable */
+  int exe = 0;
+
   /** type mime variable **/
    /* tableau de type mime  */
   mr_mime** tab_ext = (mr_mime**) malloc (1500 * sizeof (mr_mime*));
    /* number of type mime trouve  */
   int count  = 0;
   char *nom  = malloc (60 * sizeof (char));
-  char *extf  = malloc (60 * sizeof (char));
+  char *extf = malloc (60 * sizeof (char));
   char *fich = malloc (50 * sizeof (char));
   
    /*  remplir le tableau de type mime */
@@ -30,9 +33,6 @@ void *traitement_requete (void *arg) {
    printf( "tableau des extentions rempli\n");
    fflush(stdout);
  #endif
-
-
-
   
 #ifdef DEBUG
   printf("In thread request, thread ID : %lu\n", pthread_self());
@@ -66,10 +66,15 @@ void *traitement_requete (void *arg) {
   	}
   }
   else {
-  	if  (st.st_mode&S_IRUSR)
-  		code_flag = FLAG_200; /* File exist and can be read */
-  	else
-  		code_flag = FLAG_403; /* No read permission on the file*/
+    if  (st.st_mode & S_IRUSR) {
+      code_flag = FLAG_200; /* File exist and can be read */
+      /*  if it is an executable file  */
+      if (st.st_mode & S_IXUSR) {
+	exe = 1;
+      }
+    }
+    else
+      code_flag = FLAG_403; /* No read permission on the file*/
   }
 
 
@@ -124,18 +129,18 @@ void *traitement_requete (void *arg) {
 
   /* Sets answer depending on return code */
   if(code_flag&FLAG_200) {
-  	if ( (fd=open(filename, O_RDONLY)) < 0) {
+  	if ( (fd = open(filename, O_RDONLY) ) < 0) {
   		perror("read()");
   		exit(1);
   	}
-  	strcat(header, "200 OK\n");
+  	strcat (header, "200 OK\n");
   	/* TODO : content type shit */
-  	strcat(header, "Content-Type: ");
-	strcat(header, nom);
-  	strcat(header, "\nContent-Length: ");
-  	sprintf(filesize,"%lu\n\n", st.st_size);
-  	strcat(header,filesize);
-  	SetLogSret(&loginfo, 200);
+  	strcat (header, "Content-Type: ");
+	strcat (header, nom);
+  	strcat (header, "\nContent-Length: ");
+  	sprintf (filesize,"%lu\n\n", st.st_size);
+  	strcat (header, filesize);
+  	SetLogSret (&loginfo, 200);
   }
   else if (code_flag&FLAG_403) {
   	/* Content-Length: 59 because it is the length of the html sent */
@@ -164,20 +169,20 @@ void *traitement_requete (void *arg) {
   }
   if (code_flag&FLAG_200) {
   	/* Read and send whole file */
-  	while ( (n=read(fd, buffer, BUF_SIZE-1)) > 0) {
-  		if(send(r->client->sock, buffer, n, 0) < 0) {
-  			perror("send()");
-  			exit(1);
+  	while ( (n = read(fd, buffer, BUF_SIZE-1)) > 0) {
+  		if(send (r->client->sock, buffer, n, 0) < 0) {
+  			 perror("send()");
+  			 exit(1);
   		}
   	}
-  	if (n<0) {
+  	if (n < 0) {
   		perror("read()");
   		exit(1);
   	}
   	/* Close file */
-  	if (close(fd) < 0) {
-  		perror("close");
-  		exit(1);
+  	if (close (fd) < 0) {
+  		perror ("close");
+  		exit (1);
   	}
   }
   WriteLog(&loginfo, NULL);
