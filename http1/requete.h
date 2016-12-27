@@ -16,6 +16,7 @@
 #include <errno.h>
 
 #include "logger.h"
+#include "parse.h"
 //#include "client.h"
 
 #define FLAG_200 1

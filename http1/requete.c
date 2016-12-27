@@ -15,6 +15,25 @@ void *traitement_requete (void *arg) {
   unsigned int code_flag = 0;
   Loginfo loginfo;
 
+  /** type mime variable **/
+   /* tableau de type mime  */
+  mr_mime** tab_ext = (mr_mime**) malloc (1500 * sizeof (mr_mime*));
+   /* number of type mime trouve  */
+  int count  = 0;
+  char *nom  = malloc (60 * sizeof (char));
+  char *extf  = malloc (60 * sizeof (char));
+  char *fich = malloc (50 * sizeof (char));
+  
+   /*  remplir le tableau de type mime */
+  tab_ext = parse_file( &count);
+ #ifdef DEBUG
+   printf( "tableau des extentions rempli\n");
+   fflush(stdout);
+ #endif
+
+
+
+  
 #ifdef DEBUG
   printf("In thread request, thread ID : %lu\n", pthread_self());
 #endif
@@ -54,16 +73,49 @@ void *traitement_requete (void *arg) {
   }
 
 
+   /* Get the file extension  */
+   strcpy (fich, filename);
+   extf = strtok (fich, ".");
+ #ifdef DEBUG
+   printf ("ext => %s \n", extf);
+   fflush (stdout);
+ #endif
+
+   
+   extf = strtok (NULL, ".");
+
+ #ifdef DEBUG
+   printf ("ext => %s \n", extf);
+   fflush (stdout);
+ #endif
+
+   if (extf != NULL) {
+   
+   /* Get the mime type  */
+   type_mime (tab_ext, extf , nom, count);
+ #ifdef DEBUG
+   printf ("type mime trouvé %s pour ext %s \n", nom, extf);
+   fflush (stdout);
+ #endif
+   }
+   else {
+     nom = "text/plain";
+   }
+  
+
   /* Set Loginfo */
   SetLogTime  (&loginfo);
   SetLogPid   (&loginfo);
   SetLogTid   (&loginfo);
   strncpy(buffer, r->request,BUF_SIZE);
+
   if (pthread_mutex_lock(&mutex_strtok) != 0) {
     perror("lock mutex_strtok");
     exit(1);
   }
+
   SetLogLine  (&loginfo, strtok (buffer, "\n"));
+
   if (pthread_mutex_unlock(&mutex_strtok) != 0) {
     perror("unlock mutex_strtok");
     exit(1);
@@ -78,8 +130,9 @@ void *traitement_requete (void *arg) {
   	}
   	strcat(header, "200 OK\n");
   	/* TODO : content type shit */
-  	strcat(header, "Content-Type: text/html\n"); /*TODO CHANGE THIS SHIT */
-  	strcat(header, "Content-Length: ");
+  	strcat(header, "Content-Type: ");
+	strcat(header, nom);
+  	strcat(header, "\nContent-Length: ");
   	sprintf(filesize,"%lu\n\n", st.st_size);
   	strcat(header,filesize);
   	SetLogSret(&loginfo, 200);

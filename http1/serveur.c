@@ -1,8 +1,11 @@
 #include <fcntl.h>
 
+/* include .h de nous  */
 #include "client.h"
 #include "serveur.h"
 #include "parse.h"
+#include "requete.h"
+
 
 
 #define CL_BUSY 1

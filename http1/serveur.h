@@ -19,10 +19,6 @@
 #include <arpa/inet.h>
 
 
-/* include .h de nous  */
-#include "parse.h"
-#include "requete.h"
-
 /* defines */
 #define BUF_SIZE 700
 
