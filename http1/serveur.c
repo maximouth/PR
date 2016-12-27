@@ -211,30 +211,68 @@ int main (int argc, char ** argv) {
 int msg_bien_forme (char *s) {
   int l = strlen(s);
   char line[BUF_SIZE];
-  if ( strcmp(s+l-2, "\n\n") != 0 && strcmp(s+l-4, "\r\n\r\n"))
-    /* Does not end with "\n\n" or "\r\n\r\n" */
-    return -1
-  if (strncmp(s, "GET /", 5) != 0)
+
+/*   /\* check the end of the request  *\/ */
+/*   if (  ( (s[l-1] == '\n') && (s[l-0] == '\n') ) || */
+/* 	( (s[l-3] == '\r') && (s[l-2] == '\n') && */
+/* 	  (s[l-1] == '\r') && (s[l-0] == '\n')) ) { */
+/* #ifdef DEBUG */
+/*     printf ("mal fini\n fin lu :\n %c %c %c %c",s[l-3], s[l-2], s[l-1], s[l-0] ); */
+/*   fflush (stdout); */
+/* #endif */
+/*     /\* Does not end with "\n\n" or "\r\n\r\n" *\/ */
+/*     return -1; */
+/*   } */
+
+  /* check if the request start with "GET /"  */
+  if (strncmp(s, "GET /", 5) != 0) {
+#ifdef DEBUG
+  printf ("pas de GET au debut\n");
+  fflush (stdout);
+#endif
     /* Does not begin with "GET" */
-    return -1;
+    return -1;    
+  }
+
   /* Lock mutex_strtok */
   if (pthread_mutex_lock(&mutex_strtok) != 0) {
     perror("lock mutex_strtok");
     exit(1);
   }
+  /* get the first line of the request  */
   strncpy(line, strtok(s,"\n"), BUF_SIZE);
+
   /* Unlock mutex_strtok */
   if (pthread_mutex_unlock(&mutex_strtok) != 0) {
     perror("unlock mutex_strtok");
     exit(1);
   }
+
+  /* get the length of the forst line  */
   l = strlen(line);
-  if (strcmp(line+l-8,"HTTP/1.0")==0)
-    /* First line ends with "HTTP/1.0"*/
-    return 0;
-  if (strcmp(line+l-8,"HTTP/1.1")==0)
-    /* First line ends with "HTTP/1.1"*/
+
+  /* check if it is a HTTP 1.1 or HTTP 1.1 request  */
+  if (    (line[l-9] = 'H') && (line[l-8] = 'T') && (line[l-7] = 'T')
+       && (line[l-6] = 'P') && (line[l-5] = '/') && (line[l-4] = '1')
+       && (line[l-3] = '.') && (line[l-2] = '1')) {
     return 1;
+    
+  }
+
+   if (    (line[l-9] = 'H') && (line[l-8] = 'T') && (line[l-7] = 'T')
+       && (line[l-6] = 'P') && (line[l-5] = '/') && (line[l-4] = '1')
+       && (line[l-3] = '.') && (line[l-2] = '0')) {
+    return 0;
+    
+  }
+
+#ifdef DEBUG
+  printf ("pas de HTTP a la fin\n fin : %c %c %c %c %c %c %c %c %c %c\n",
+	  line[l-9], line[l-8], line[l-7], line[l-6], line[l-5], line[l-4],
+	  line[l-3], line[l-2], line[l-1], line[l-0]);
+  fflush (stdout);
+#endif
+    
   return -1;
 }
 
@@ -282,6 +320,7 @@ void *traitement_client(void *arg){
       /* Request does not match expected format */
       printf("The request does not match expected format\n");
       fflush(stdout);
+      
       /* TODO : we need to chose whether we simply ignore improperly
        * formatted request, or if we send() a message to the client
        * Also, should we close connection, or wait for another request? */
