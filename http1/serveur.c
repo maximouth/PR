@@ -295,7 +295,7 @@ void *traitement_client(void *arg){
   Request first;
   Request *current, *tmp;
   pthread_t *list;
-  int lengthList = 1;
+  int lengthList = 5;
 
 #ifdef DEBUG
   printf("In client thread, threadID : %lu\n", pthread_self());
@@ -326,7 +326,14 @@ void *traitement_client(void *arg){
       
       /* TODO : we need to chose whether we simply ignore improperly
        * formatted request, or if we send() a message to the client
-       * Also, should we close connection, or wait for another request? */
+       * Also, should we close connection, or wait for another request? 
+
+       
+       fermer la connexion 
+       les autres ne peuvent pas etre bien formée vu que la premiere ne l'esst pas
+       renvoyer un message pourquoi pas mais avec quel code erreur?
+*/
+      
       continue;
     }
     /* TODO : case msg_val == 0 OR msg_val == 1
@@ -357,7 +364,8 @@ void *traitement_client(void *arg){
       current = current->next;
 
       /* Increases size of list of threads */
-      if ( (list=realloc(list, ++lengthList)) == NULL) {
+      lengthList++;
+      if ( (list=realloc(list, lengthList )) == NULL) {
         perror("realloc()");
         exit(1);
       }
@@ -383,8 +391,8 @@ void *traitement_client(void *arg){
    * EVERY. SINGLE. CALLOC.
    * Follow chained list to do so */
 
-  /* Ends connection */
-  close(c->sock);
+  /* Ends connection */ 
+ close(c->sock);
 #ifdef DEBUG
   printf("Closing connection client %d\n",c->index);
   fflush(stdout);
