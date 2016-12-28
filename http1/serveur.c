@@ -12,6 +12,7 @@
 #define CL_FREE 0
 
 /* tableau de type mime  */
+/* TODO : ça sert plus a rien ça? on le vire? */
 mr_mime** tab_ext;
 
 /* number of type mime trouve  */
@@ -255,6 +256,7 @@ int msg_bien_forme (char *s) {
   l = strlen(line);
 
   /* check if it is a HTTP 1.1 or HTTP 1.1 request  */
+  /* TODO : faire strncmp plutot! */
   if (    (line[l-9] = 'H') && (line[l-8] = 'T') && (line[l-7] = 'T')
        && (line[l-6] = 'P') && (line[l-5] = '/') && (line[l-4] = '1')
        && (line[l-3] = '.') && (line[l-2] = '1')) {
@@ -340,46 +342,38 @@ void *traitement_client(void *arg){
      * Raise a flag or smthg to exit while! */
 
     /* Request is correctly formatted */
-    if (strncmp(buffer,"GET",3)==0) {
-      /* Setup Request structure */
-      strncpy(current->request, buffer, REQ_SIZE);
-      if (pthread_mutex_lock(&c->mutex_nbRequest) != 0) {
-        perror("pthread_mutex_lock(mutex_nbRequest");
-        exit(1);
-      }
-      current->index = c->nbRequest ++;
-      if (pthread_mutex_unlock(&c->mutex_nbRequest) != 0) {
-        perror("pthread_mutex_unlock(mutex_nbRequest");
-        exit(1);
-      }
-      current->client = c;
-      pthread_mutex_init(&current->mutex_self, NULL);
-      /* TODO : lock mutex in case it is the first thread created
-       * OR last thread already finished */
-      if ( (current->next=calloc(1, sizeof(Request))) == NULL) {
-        perror("calloc()");
-        exit(1);
-      }
-      tmp = current;
-      current = current->next;
-
-      /* Increases size of list of threads */
-      lengthList++;
-      if ( (list=realloc(list, lengthList )) == NULL) {
-        perror("realloc()");
-        exit(1);
-      }
-      /* Create thread */
-      if (pthread_create(&list[lengthList-1], NULL, traitement_requete, (void *) tmp) != 0) {
-        perror("pthread_create");
-        exit(1);
-      }
+    /* Setup Request structure */
+    strncpy(current->request, buffer, REQ_SIZE);
+    if (pthread_mutex_lock(&c->mutex_nbRequest) != 0) {
+      perror("pthread_mutex_lock(mutex_nbRequest");
+      exit(1);
     }
-    else {
-      /* Case we need to fork and exec --> Q3 */
-      /* TODO : QUESTION 3 */
-      /* Idea : Use an other keyword than GET in request
-       * update msg_bien_forme according to new keyword */
+    current->index = c->nbRequest ++;
+    if (pthread_mutex_unlock(&c->mutex_nbRequest) != 0) {
+      perror("pthread_mutex_unlock(mutex_nbRequest");
+      exit(1);
+    }
+    current->client = c;
+    pthread_mutex_init(&current->mutex_self, NULL);
+    /* TODO : lock mutex in case it is the first thread created
+     * OR last thread already finished */
+    if ( (current->next=calloc(1, sizeof(Request))) == NULL) {
+      perror("calloc()");
+      exit(1);
+    }
+    tmp = current;
+    current = current->next;
+
+    /* Increases size of list of threads */
+    lengthList++;
+    if ( (list=realloc(list, lengthList )) == NULL) {
+      perror("realloc()");
+      exit(1);
+    }
+    /* Create thread */
+    if (pthread_create(&list[lengthList-1], NULL, traitement_requete, (void *) tmp) != 0) {
+      perror("pthread_create");
+      exit(1);
     }
   }
   if (rcv_val < 0) {

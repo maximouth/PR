@@ -20,6 +20,7 @@ void *traitement_requete (void *arg) {
 
   /** type mime variable **/
    /* tableau de type mime  */
+  /* C'est quand meme super sale de devoir alouer le tableau a chaque fois... */
   mr_mime** tab_ext = (mr_mime**) malloc (1500 * sizeof (mr_mime*));
    /* number of type mime trouve  */
   int count  = 0;
@@ -70,24 +71,25 @@ void *traitement_requete (void *arg) {
       code_flag = FLAG_200; /* File exist and can be read */
       /*  if it is an executable file  */
       if (st.st_mode & S_IXUSR) {
-	exe = 1;
+		exe = 1;
       }
     }
     else
       code_flag = FLAG_403; /* No read permission on the file*/
-  }
+  	}
 
 
    /* Get the file extension  */
-   strcpy (fich, filename);
-   extf = strtok (fich, ".");
+	/* TODO protect strtok with mutex */
+	strcpy (fich, filename);
+ 	extf = strtok (fich, ".");
  #ifdef DEBUG
-   printf ("ext => %s \n", extf);
-   fflush (stdout);
+    printf ("ext => %s \n", extf);
+    fflush (stdout);
  #endif
 
    
-   extf = strtok (NULL, ".");
+    extf = strtok (NULL, ".");
 
  #ifdef DEBUG
    printf ("ext => %s \n", extf);
@@ -99,7 +101,7 @@ void *traitement_requete (void *arg) {
    /* Get the mime type  */
    type_mime (tab_ext, extf , nom, count);
  #ifdef DEBUG
-   printf ("type mime trouvé %s pour ext %s \n", nom, extf);
+   printf ("type mime trouve%s pour ext %s \n", nom, extf);
    fflush (stdout);
  #endif
    }
