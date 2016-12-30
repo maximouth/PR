@@ -73,7 +73,7 @@ void WriteLog(Loginfo *l, char* filename){
 
 /* Set client address field in Loginfo *
  * This function is thread safe */
-void SetLogAddr2(Loginfo *l, const char *s) {
+void SetLogAddr(Loginfo *l, const char *s) {
 #ifdef DEBUG
 	printf("Setting address in Loginfo struct ...");
 #endif
@@ -82,32 +82,6 @@ void SetLogAddr2(Loginfo *l, const char *s) {
 	printf(" DONE :\nAddress : %s\n", l->caddr);
 	fflush(stdout);
 #endif
-}
-void SetLogAddr(Loginfo *l, const struct in_addr *csin) {
-	/* thread unsafe function, calls need to be protected */
-	printf("HERE\n");
-	/*if(pthread_mutex_lock(&mutex_loginfo) < 0) {
-		perror("lock mutex_loginfo");
-		exit(1);
-	}*/
-	/* fill caddr field in Loginfo struct */
-	printf("Address in fct : %p\n", csin);
-#ifdef DEBUG
-	printf("Setting address in Loginfo struct ...");
-	printf("%s\n", inet_ntoa(*csin));
-	fflush(stdout);
-#endif
-	strncpy(l->caddr, inet_ntoa(*csin), ADD_SIZE);
-#ifdef DEBUG
-	printf(" DONE :\nAddress : %s\n", l->caddr);
-	fflush(stdout);
-#endif
-	/* unlock mutex */
-	/*if(pthread_mutex_unlock(&mutex_loginfo) < 0) {
-		perror("unlock mutex_loginfo");
-		exit(1);
-	}*/
-	return;
 }
 
 /* Set time field in Loginfo *
@@ -125,7 +99,7 @@ void SetLogTime(Loginfo *l) {
 #endif
 	strncpy(l->time, ctime(&t), TIM_SIZE);
 #ifdef DEBUG
-	printf(" DONE :\nTime : %s\n", l->time);
+	printf(" DONE :\nTime : %s", l->time);
 	fflush(stdout);
 #endif
 	/* unlock mutex */
