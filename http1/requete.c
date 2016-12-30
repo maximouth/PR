@@ -6,7 +6,7 @@ void *traitement_requete (void *arg) {
   /* File variables */
   char filename[50];
   char tmp[52] = "./";
-  char ext[10];
+  //char ext[10];
   struct stat st;
   char filesize[14];
   int fd, n;
@@ -132,10 +132,12 @@ void *traitement_requete (void *arg) {
     perror("unlock mutex_strtok");
     exit(1);
   }
-  SetLogRsize (&loginfo, st.st_size);
+  if (!exe)
+  	SetLogRsize (&loginfo, st.st_size);
 
-  /* Sets answer depending on return code */
-  if(code_flag&FLAG_200) {
+  /* Sets answer depending on return code
+   * Only if not executable! */
+  if(code_flag&FLAG_200 && !exe) {
   	if ( (fd = open(filename, O_RDONLY) ) < 0) {
   		perror("read()");
   		exit(1);
@@ -150,14 +152,14 @@ void *traitement_requete (void *arg) {
   	SetLogSret (&loginfo, 200);
   }
   else if (code_flag&FLAG_403) {
-  	/* Content-Length: 59 because it is the length of the html sent */
-  	strcat(header, "403 Forbidden\nContent-Length: 59\n\n<html><body>\n<h1>403</h1>\n<h2>Forbidden</h2>\n</body></html>\n");
+  	/* Content-Length: 60 because it is the length of the html sent */
+  	strcat(header, "403 Forbidden\nContent-Length: 60\n\n<html><body>\n<h1>403</h1>\n<h2>Forbidden</h2>\n</body></html>\n");
   	SetLogSret(&loginfo, 403);
 
   }
-  else {
-  	/* Content-Length: 59 because it is the length of the html sent */
-  	strcat(header, "404 Not Found\nContent-Length: 59\n\n<html><body>\n<h1>404</h1>\n<h2>Not Found</h2>\n</body></html>\n");
+  else if (code_flag&FLAG_404) {
+  	/* Content-Length: 60 because it is the length of the html sent */
+  	strcat(header, "404 Not Found\nContent-Length: 60\n\n<html><body>\n<h1>404</h1>\n<h2>Not Found</h2>\n</body></html>\n");
   	SetLogSret(&loginfo, 404);
   }
   /* --------------------------------------------------------------------------- */
@@ -178,7 +180,6 @@ void *traitement_requete (void *arg) {
   		wait(&status);
   		if (!WIFEXITED(status) || WEXITSTATUS(status)!=0 ) {
   			SetLogSret(&loginfo, 500);
-  			strcpy(header, "HTTP/1.1/ 500 Internal Server Error\nContent-Length: 72\n\n<html><body>\n<h1>500</h1>\n<h2>Internal Server Error</h2>\n</body></html>\n");
   		}
   		else {
   			/* TODO.. smthg todo? */

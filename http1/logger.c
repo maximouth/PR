@@ -156,7 +156,7 @@ void SetLogSret(Loginfo *l, const unsigned int r) {
 #endif
 	snprintf(l->sret, RET_SIZE, "%u", r);
 #ifdef DEBUG
-	printf(" DONE :\nLine : %s\n", l->sret);
+	printf(" DONE :\nRetVal : %s\n", l->sret);
 	fflush(stdout);
 #endif
 }
