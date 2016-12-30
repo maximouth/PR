@@ -1,0 +1,71 @@
+Ou on en est :
+	Q1 : 100%
+	Q2 : 100%
+	Q3 : 70%
+	Q4 : 70%
+	Q5 : 0%
+
+
+Ce qu'il faut faire :
+-Gérer la synchro du fork. On veut que le fils commence à s'éxecuter.
+Par contre, il faut qu'il attende le feu vert pour écrire au client.
+On utilise des pipes (les signaux c'est pas 100% fiables pour la synchro)
+Le problème : nommer les pipes (il faut des noms différents car plusieurs threads peuvent devoir executer des proc, et ils doivent avoir chacun leur pipe)
+	--> sol1 : nommer les pipes en fct des Thread ID type "synchroXXXXXXXX" et "returnXXXXXXXXX"
+	--> sol2 : faire une var statique (avec mutex du coup) qu'on incrémente a chaque fois qu'on est en mode "execution" et nommer comme sol1
+/!\ Attention les pipes sont bloquantes si accédées dans le mauvais ordre (cf cours pipes)
+Idée gloabale (syntaxe type python pour l'indentation)
+requete_traitement(..) 
+	(..)
+	exe = 1
+	if(exe)
+		Création pipes avec mkfifo()
+		fork()
+		if (fils)
+			exec
+		/* Pere */
+		open(pipe_synchro, write)
+	(..)
+	/* Synchro avec autres threads (lock(self))*/
+	write(pipe_synchro,"continue")
+	(..)
+	if (exe)
+		open(pipe_return, read)
+		info_retour = read()
+		SetLogSret(info_retour)
+		SetLogSize(info_retour)
+	WriteLog()
+	(..)
+	return NULL
+
+Si tu pouvais essayer de faire ça, ça serait cool.
+
+Il y a aussi le problème de la synchro entre les threads de requete.
+J'ai fait le syteme suivant :
+requete_traitement(..)
+	(..)
+	if(derniere requete)
+		raise a flag de la thread client pour ne pas locker la prochaine requete qu'il creera
+	sinon
+		delocker la requete suivante
+	(..)
+Et pour le client :
+client_traitement(..)
+	(..)
+	while(true)
+		(..)
+		recoit requete
+		creer struct requete, la remplir
+		if (!flag)
+			locker la requete
+		thread_create()
+	(..)
+Mais j'ai pas encore fini de mettre en place le méchanisme, si t'as le temps de faire ça vite fait =)
+
+
+Pour ma part, je continue à réfléchir à la Q5.
+Je pense partir sur un truc qui parcourt le journal, à la recherche des entrées correspondant à une IP donnée.
+Quand on rencontre cette IP, on ajoute à la taille, si cette taille excede le 3eme param, on met en place la temporisation.
+
+Techniquement, je sait pas trop comment le fork/exec est sensé communiqué avec le client, puisqu'il n'a pas de socket ouverte
+en discussion avec lui...

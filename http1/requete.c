@@ -6,7 +6,6 @@ void *traitement_requete (void *arg) {
   /* File variables */
   char filename[50];
   char tmp[52] = "./";
-  //char ext[10];
   struct stat st;
   char filesize[14];
   int fd, n;
@@ -15,9 +14,12 @@ void *traitement_requete (void *arg) {
   char header[ANS_SIZE] = "HTTP/1.1 ";
   unsigned int code_flag = 0;
   Loginfo loginfo;
-
   /* fichier executable */
   int exe = 0, pid, status;
+  int pipe_synchro, pipe_return;
+  char synchroname[13] = "synchro";
+  char returnname[12] = "return";
+
 
   /** type mime variable **/
    /* tableau de type mime  */
@@ -79,39 +81,41 @@ void *traitement_requete (void *arg) {
 
 
    /* Get the file extension  */
-	strcpy (fich, filename);
-	if (pthread_mutex_lock(&mutex_strtok) != 0) {
-		perror("pthread_mutex_lock(mutex_strtok)");
-		exit(1);
+  	if (!exe) { 
+		strcpy (fich, filename);
+		if (pthread_mutex_lock(&mutex_strtok) != 0) {
+			perror("pthread_mutex_lock(mutex_strtok)");
+			exit(1);
+		}
+	 	extf = strtok (fich, ".");
+#ifdef DEBUG
+	    printf ("ext => %s \n", extf);
+	    fflush (stdout);
+#endif
+	    extf = strtok (NULL, ".");
+	    if (pthread_mutex_unlock(&mutex_strtok) != 0) {
+	    	perror("pthread_mutex_unlock(mutex_strtok)");
+	    	exit(1);
+	    }
+
+	 #ifdef DEBUG
+	   printf ("ext => %s \n", extf);
+	   fflush (stdout);
+	 #endif
+
+	   if (extf != NULL) {
+	   
+	   /* Get the mime type  */
+	   type_mime (tab_ext, extf , nom, count);
+	 #ifdef DEBUG
+	   printf ("type mime trouve %s pour ext %s \n", nom, extf);
+	   fflush (stdout);
+	 #endif
+	   }
+	   else {
+	     nom = "text/plain";
+	   }
 	}
- 	extf = strtok (fich, ".");
- #ifdef DEBUG
-    printf ("ext => %s \n", extf);
-    fflush (stdout);
- #endif
-    extf = strtok (NULL, ".");
-    if (pthread_mutex_unlock(&mutex_strtok) != 0) {
-    	perror("pthread_mutex_unlock(mutex_strtok)");
-    	exit(1);
-    }
-
- #ifdef DEBUG
-   printf ("ext => %s \n", extf);
-   fflush (stdout);
- #endif
-
-   if (extf != NULL) {
-   
-   /* Get the mime type  */
-   type_mime (tab_ext, extf , nom, count);
- #ifdef DEBUG
-   printf ("type mime trouve %s pour ext %s \n", nom, extf);
-   fflush (stdout);
- #endif
-   }
-   else {
-     nom = "text/plain";
-   }
   
 
   /* Set Loginfo */
@@ -165,6 +169,16 @@ void *traitement_requete (void *arg) {
   /* --------------------------------------------------------------------------- */
   /* Question 3 */
   if (exe) {
+  	/* Create pipe for syncronisation */
+  	if (mkfifo(synchroname, S_IRUSR|S_IWUSR) < 0) {
+  		perror("mkfifo()");
+  		exit(1);
+  	}
+  	/* Pipe to read return value and size of answer */
+  	if (mkfifo("pipe_return", S_IRUSR|S_IWUSR) < 0) {
+  		perror("mkfifo()");
+  		exit(1);
+  	}
   	pid = fork();
   	if (pid < 0) {
   		perror("fork()");
@@ -174,16 +188,21 @@ void *traitement_requete (void *arg) {
   		/* Fils */
   		strcat(tmp,filename);
   		execlp (tmp, tmp, NULL);
+  		perror("execlp()");
+  		exit(1);
+  	}
+  	/* Pere */
+  	if ( (pipe_synchro=open("pipe_synchro", O_WRONLY)) < 0 ) {
+  		perror("open()");
+  		exit(1);
+  	}
+  	/* TODO : !!!!!!Move this at right place */
+  	wait(&status);
+  	if (!WIFEXITED(status) || WEXITSTATUS(status)!=0 ) {
+  		SetLogSret(&loginfo, 500);
   	}
   	else {
-  		/* Pere */
-  		wait(&status);
-  		if (!WIFEXITED(status) || WEXITSTATUS(status)!=0 ) {
-  			SetLogSret(&loginfo, 500);
-  		}
-  		else {
-  			/* TODO.. smthg todo? */
-  		}
+  			/* TODO.. read/write into pipes */
   	}
   }
 
@@ -193,9 +212,12 @@ void *traitement_requete (void *arg) {
   	perror("mutex lock : mutex_self");
   	exit(1);
   }
+  if (exe) {
+  	write(pipe_synchro, "Continue\0",8);
+  }
   /* --------------------------------------------------------------------------- */
   /* Send header+file and write logs */
-  if(send(r->client->sock, header, strlen(header), 0) < 0) {
+  if( !exe && send(r->client->sock, header, strlen(header), 0) < 0) {
       perror("send()");
       exit(1);
   }
@@ -226,6 +248,7 @@ void *traitement_requete (void *arg) {
   }
   if (r->index < r->client->nbRequest) {
   	/* If there are more request to treat */
+  	/* TODO make sure this works with exec... */
   	if (pthread_mutex_unlock (&r->next->mutex_self) != 0) {
   		perror("mutex unlock : mutex_next");
   		exit(1);
