@@ -5,6 +5,7 @@ void *traitement_requete (void *arg) {
   Request *r = (Request *) arg;
   /* File variables */
   char filename[50];
+  char tmp[52] = "./";
   char ext[10];
   struct stat st;
   char filesize[14];
@@ -16,7 +17,7 @@ void *traitement_requete (void *arg) {
   Loginfo loginfo;
 
   /* fichier executable */
-  int exe = 0;
+  int exe = 0, pid, status;
 
   /** type mime variable **/
    /* tableau de type mime  */
@@ -59,8 +60,6 @@ void *traitement_requete (void *arg) {
   if (stat (filename, &st) < 0) {
   	if (errno == EACCES) {
   		code_flag = FLAG_403; /* No read permission on the path*/
-  		printf("HERE\n");
-  		fflush(stdout);
   	}
   	else {
   		code_flag = FLAG_404; /* File does not exist */
@@ -80,16 +79,21 @@ void *traitement_requete (void *arg) {
 
 
    /* Get the file extension  */
-	/* TODO protect strtok with mutex */
 	strcpy (fich, filename);
+	if (pthread_mutex_lock(&mutex_strtok) != 0) {
+		perror("pthread_mutex_lock(mutex_strtok)");
+		exit(1);
+	}
  	extf = strtok (fich, ".");
  #ifdef DEBUG
     printf ("ext => %s \n", extf);
     fflush (stdout);
  #endif
-
-   
     extf = strtok (NULL, ".");
+    if (pthread_mutex_unlock(&mutex_strtok) != 0) {
+    	perror("pthread_mutex_unlock(mutex_strtok)");
+    	exit(1);
+    }
 
  #ifdef DEBUG
    printf ("ext => %s \n", extf);
@@ -101,7 +105,7 @@ void *traitement_requete (void *arg) {
    /* Get the mime type  */
    type_mime (tab_ext, extf , nom, count);
  #ifdef DEBUG
-   printf ("type mime trouve%s pour ext %s \n", nom, extf);
+   printf ("type mime trouve %s pour ext %s \n", nom, extf);
    fflush (stdout);
  #endif
    }
@@ -111,6 +115,7 @@ void *traitement_requete (void *arg) {
   
 
   /* Set Loginfo */
+  SetLogAddr (&loginfo, r->client->address);
   SetLogTime  (&loginfo);
   SetLogPid   (&loginfo);
   SetLogTid   (&loginfo);
@@ -155,7 +160,31 @@ void *traitement_requete (void *arg) {
   	strcat(header, "404 Not Found\nContent-Length: 59\n\n<html><body>\n<h1>404</h1>\n<h2>Not Found</h2>\n</body></html>\n");
   	SetLogSret(&loginfo, 404);
   }
-
+  /* --------------------------------------------------------------------------- */
+  /* Question 3 */
+  if (exe) {
+  	pid = fork();
+  	if (pid < 0) {
+  		perror("fork()");
+  		exit(1);
+  	}
+  	if (pid == 0) {
+  		/* Fils */
+  		strcat(tmp,filename);
+  		execlp (tmp, tmp, NULL);
+  	}
+  	else {
+  		/* Pere */
+  		wait(&status);
+  		if (!WIFEXITED(status) || WEXITSTATUS(status)!=0 ) {
+  			SetLogSret(&loginfo, 500);
+  			strcpy(header, "HTTP/1.1/ 500 Internal Server Error\nContent-Length: 72\n\n<html><body>\n<h1>500</h1>\n<h2>Internal Server Error</h2>\n</body></html>\n");
+  		}
+  		else {
+  			/* TODO.. smthg todo? */
+  		}
+  	}
+  }
 
   /* --------------------------------------------------------------------------- */
   /* Wait previous request over */
