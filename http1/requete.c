@@ -230,12 +230,12 @@ void *traitement_requete (void *arg) {
 #endif
 
 
-/*       /\* wait fot the green signal  *\/ */
+ /*      /\* wait fot the green signal  *\/ */
 /*       read (pipe_synchro, lu, 1); */
 /*       while (lu[0] != '1') { */
 /* #ifdef DEBUG */
-/*       printf ("waiting fot the green light\n"); */
-/*       fflush (stdout);	 */
+/* 	printf ("waiting fot the green light lu : %c\n", lu[0]); */
+/*       fflush (stdout); */
 /* #endif */
 /* 	read (pipe_synchro, lu, 1); */
 /*       } */
@@ -269,12 +269,13 @@ void *traitement_requete (void *arg) {
       exit(1);
     }
 
+
+    
 #ifdef DEBUG
       printf ("pipe open pere\n");
       fflush (stdout);	
 #endif
-
-    
+      
     /* TODO : !!!!!!Move this at right place 
        I don't know where..
      */
@@ -283,8 +284,10 @@ void *traitement_requete (void *arg) {
       SetLogSret(&loginfo, 500);
     }
     else {
+
       /* /\* send the green light to the son *\/ */
-      /* send(pipe_synchro, "11111", 5, 0); */
+      /* send(pipe_synchro, "11111", 1, 0); */
+
       
       /* send to the client all of the son write on stdout */
       while (read (pipe_return, lu, 1) != 0) {
