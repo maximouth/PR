@@ -7,7 +7,6 @@
 #include "requete.h"
 
 
-
 #define CL_BUSY 1
 #define CL_FREE 0
 
@@ -71,8 +70,8 @@ int main (int argc, char ** argv) {
   sinf.sin_port = htons ( num_port );
   sinf.sin_family = AF_INET;
   /* MAYBE we need : 
-  true = 1;
-  setsockopt(sock,SOL_SOCKET,SO_REUSEADDR,&true,sizeof(int))
+     true = 1;
+     setsockopt(sock,SOL_SOCKET,SO_REUSEADDR,&true,sizeof(int))
   */
 
 
@@ -126,8 +125,10 @@ int main (int argc, char ** argv) {
       	exit(1);
       }
 
-      if(strncmp("QUIT\n",buffer,5)==0 || strncmp("quit\n", buffer,5)==0){
+      if (   strncmp("QUIT\n", buffer, 5) == 0
+	  || strncmp("quit\n", buffer, 5) == 0){
       	stop_flag = 0;
+      	printf("------------------stop flag changé\n");
       }
       else
       	printf("Unknown command\n");
@@ -168,10 +169,10 @@ int main (int argc, char ** argv) {
 		
 	ind = 0;
 	/* prendre le tableau  */
-	 if (pthread_mutex_lock (&mutex_thread) < 0) {
-	 perror ("lock mutex_thread seveur");
-	 exit (1);
-	 }
+	if (pthread_mutex_lock (&mutex_thread) < 0) {
+	  perror ("lock mutex_thread seveur");
+	  exit (1);
+	}
 	while (free_client[ind] == CL_BUSY) {
 	  ind ++;
 	}
@@ -179,13 +180,13 @@ int main (int argc, char ** argv) {
 	free_client[ind] = CL_BUSY;
 	/* relacher le tableau  */
 	if (pthread_mutex_unlock (&mutex_thread) < 0) {
-	   perror ("unlock mutex_thread seveur");
-	   exit (1);
+	  perror ("unlock mutex_thread seveur");
+	  exit (1);
 	}
 
 	clients[ind].sock = client_sock;
 	clients[ind].index = ind;
-  strncpy(clients[ind].address, inet_ntoa(csin.sin_addr), 15);
+	strncpy(clients[ind].address, inet_ntoa(csin.sin_addr), 15);
 	//clients[ind].csinf = csin;
 	
 	/* Create pthread associated with the new client */
@@ -203,9 +204,22 @@ int main (int argc, char ** argv) {
 	perror ("unlock mutex_cpt seveur");
 	exit (1);
       }
+
+#ifdef DEBUG
+    printf ("end input socket\n");
+#endif
+      
     } /* End case input on connection socket */
+
+#ifdef DEBUG
+    printf ("stop flag : %d\n", stop_flag);
+#endif
   } /* End main loop -> while(stop_flag) */
 
+#ifdef DEBUG
+    printf ("fin main\n");
+#endif
+  
   /* TODO : Join pthread before terminating? */
   close(sockd);
   return 0;
@@ -214,25 +228,25 @@ int main (int argc, char ** argv) {
 /* test si le message est bien formé ou non  */
 int msg_bien_forme (char *s) {
   int l = strlen(s);
-  char line[BUF_SIZE];
+  char line[BUF_SIZE] = "0";
 
-/*   /\* check the end of the request  *\/ */
-/*   if (  ( (s[l-1] == '\n') && (s[l-0] == '\n') ) || */
-/* 	( (s[l-3] == '\r') && (s[l-2] == '\n') && */
-/* 	  (s[l-1] == '\r') && (s[l-0] == '\n')) ) { */
-/* #ifdef DEBUG */
-/*     printf ("mal fini\n fin lu :\n %c %c %c %c",s[l-3], s[l-2], s[l-1], s[l-0] ); */
-/*   fflush (stdout); */
-/* #endif */
-/*     /\* Does not end with "\n\n" or "\r\n\r\n" *\/ */
-/*     return -1; */
-/*   } */
+  /*   /\* check the end of the request  *\/ */
+  /*   if (  ( (s[l-1] == '\n') && (s[l-0] == '\n') ) || */
+  /* 	( (s[l-3] == '\r') && (s[l-2] == '\n') && */
+  /* 	  (s[l-1] == '\r') && (s[l-0] == '\n')) ) { */
+  /* #ifdef DEBUG */
+  /*     printf ("mal fini\n fin lu :\n %c %c %c %c",s[l-3], s[l-2], s[l-1], s[l-0] ); */
+  /*   fflush (stdout); */
+  /* #endif */
+  /*     /\* Does not end with "\n\n" or "\r\n\r\n" *\/ */
+  /*     return -1; */
+  /*   } */
 
   /* check if the request start with "GET /"  */
   if (strncmp(s, "GET /", 5) != 0) {
 #ifdef DEBUG
-  printf ("pas de GET au debut\n");
-  fflush (stdout);
+    printf ("pas de GET au debut\n");
+    fflush (stdout);
 #endif
     /* Does not begin with "GET" */
     return -1;    
@@ -257,16 +271,35 @@ int msg_bien_forme (char *s) {
 
   /* check if it is a HTTP 1.1 or HTTP 1.1 request  */
   /* TODO : faire strncmp plutot! */
-  if (    (line[l-9] = 'H') && (line[l-8] = 'T') && (line[l-7] = 'T')
-       && (line[l-6] = 'P') && (line[l-5] = '/') && (line[l-4] = '1')
-       && (line[l-3] = '.') && (line[l-2] = '1')) {
+  if (    (line[l-9] == 'H') && (line[l-8] == 'T') && (line[l-7] == 'T')
+	  && (line[l-6] == 'P') && (line[l-5] == '/') && (line[l-4] == '1')
+	  && (line[l-3] == '.') && (line[l-2] == '1')) {
+
+#ifdef DEBUG
+    printf ("---------- HTTP1.1  \n");
+    printf ("\n\n%c %c %c %c %c %c %c %c\n\n", line[l-9],
+	    line[l-8], line[l-7], line[l-6], line[l-5],
+	    line[l-4], line[l-3], line[l-2] ) ;
+
+    fflush (stdout);
+#endif
+
     return 1;
     
   }
 
-   if (    (line[l-9] = 'H') && (line[l-8] = 'T') && (line[l-7] = 'T')
-       && (line[l-6] = 'P') && (line[l-5] = '/') && (line[l-4] = '1')
-       && (line[l-3] = '.') && (line[l-2] = '0')) {
+  if (    (line[l-9] == 'H') && (line[l-8] == 'T') && (line[l-7] == 'T')
+	  && (line[l-6] == 'P') && (line[l-5] == '/') && (line[l-4] == '1')
+	  && (line[l-3] == '.') && (line[l-2] == '0')) {
+#ifdef DEBUG
+    printf ("---------- HTTP1.0  \n");
+    printf ("\n\n%c %c %c %c %c %c %c %c\n\n", line[l-9],
+	    line[l-8], line[l-7], line[l-6], line[l-5],
+	    line[l-4], line[l-3], line[l-2] ) ;
+    fflush (stdout);
+#endif
+
+
     return 0;
     
   }
@@ -285,11 +318,11 @@ int msg_bien_forme (char *s) {
 
 
 /*
-  * The server starts a pthreads each time it receives a new client.
-  * This thread will also start new thread, every time it receives a request
-  * Those threads need to be synchronized in order to answer in the order the
-  * request were sent.
-*/
+ * The server starts a pthreads each time it receives a new client.
+ * This thread will also start new thread, every time it receives a request
+ * Those threads need to be synchronized in order to answer in the order the
+ * request were sent.
+ */
 void *traitement_client(void *arg){
   Client *c = (Client *) arg;
   char buffer[BUF_SIZE];
@@ -297,7 +330,7 @@ void *traitement_client(void *arg){
   Request first;
   Request *current, *tmp;
   pthread_t *list;
-  int lengthList = 5;
+  int lengthList = 1;
 
 #ifdef DEBUG
   printf("In client thread, threadID : %lu\n", pthread_self());
@@ -319,22 +352,67 @@ void *traitement_client(void *arg){
     exit(1);
   }
 
-  /* While client sends requests */
-  while ( (rcv_val = recv(c->sock, buffer, BUF_SIZE-1, 0)) > 0) {
-    if ( (msg_val=msg_bien_forme(buffer)) < 0) {
+  /* put the condition to true to entering in the loop  */
+   msg_val = 1;
+  
+  /* While client sends requests 
+     evaluation progressive pour le test pour pas avoir 
+     de probleme de lecture bloquante
+   */
+  while ( (msg_val == 1) &&
+	  ((rcv_val = recv(c->sock, buffer, BUF_SIZE-1, 0)) > 0)
+	   ) {
+
+#ifdef DEBUG
+    printf("dans le while request and msg_val %d\n", msg_val);
+    fflush(stdout);
+#endif
+
+
+    if ( (msg_val = msg_bien_forme (buffer)) < 0) {
       /* Request does not match expected format */
       printf("The request does not match expected format\n");
       fflush(stdout);
-      
+
+      /* renvoyer le code erreur  */
+      send(c->sock,"HTTP/1.1 404 Not Found\nCOntent-Type: text/html\n COntent-Length:58\n <html>\n<body>\n<h1>mauvaise requete</h1></body>\n</html>",120, 0);       
+
+      /* fermer la connexion */
+      close (c->sock);
+
+#ifdef DEBUG
+      printf("Closing connection client %d\n",c->index);
+      fflush(stdout);
+#endif
+      if (pthread_mutex_lock(&mutex_cpt) != 0) {
+	perror("pthread_mutex_lock(mutex_cpt)");
+	exit(1);
+      }
+      cpt--;
+      if (pthread_mutex_unlock(&mutex_cpt) != 0) {
+	perror("pthread_mutex_unlock(mutex_cpt)");
+	exit(1);
+      }
+      if(pthread_mutex_lock(&mutex_thread) != 0) {
+	perror("pthread_mutex_lock(mutex_thread");
+	exit(1);
+      }
+      free_client[c->index] = CL_FREE;
+      if(pthread_mutex_unlock(&mutex_thread) != 0) {
+	perror("pthread_mutex_unlock(mutex_thread");
+	exit(1);
+      }
+
       /* TODO : we need to chose whether we simply ignore improperly
        * formatted request, or if we send() a message to the client
        * Also, should we close connection, or wait for another request? 
 
-       
+
+
        fermer la connexion 
        les autres ne peuvent pas etre bien formée vu que la premiere ne l'esst pas
        renvoyer un message pourquoi pas mais avec quel code erreur?
-*/
+      */
       
       continue;
     }
@@ -344,8 +422,9 @@ void *traitement_client(void *arg){
     /* Request is correctly formatted */
     /* Setup Request structure */
     strncpy(current->request, buffer, REQ_SIZE);
+    
     if (pthread_mutex_lock(&c->mutex_nbRequest) != 0) {
-      perror("pthread_mutex_lock(mutex_nbRequest");
+      perror("pthread_mutex_lock 1(mutex_nbRequest");
       exit(1);
     }
     current->index = c->nbRequest ++;
@@ -366,8 +445,8 @@ void *traitement_client(void *arg){
 
     /* Increases size of list of threads */
     lengthList++;
-    if ( (list=realloc(list, lengthList )) == NULL) {
-      perror("realloc()");
+    if ( (list=realloc(list, lengthList)) == NULL) {
+      perror("realloc() size of thread");
       exit(1);
     }
     /* Create thread */
@@ -386,7 +465,7 @@ void *traitement_client(void *arg){
    * Follow chained list to do so */
 
   /* Ends connection */ 
- close(c->sock);
+  close(c->sock);
 #ifdef DEBUG
   printf("Closing connection client %d\n",c->index);
   fflush(stdout);
@@ -415,30 +494,30 @@ void *traitement_client(void *arg){
 
 
 /*
-if ( !msg_bien_forme(requete) ) {
-    close (c->sock);
-    printf("The request does not match expected format\n");
-    fflush(stdout);
+  if ( !msg_bien_forme(requete) ) {
+  close (c->sock);
+  printf("The request does not match expected format\n");
+  fflush(stdout);
 
   if (pthread_mutex_lock(&mutex_cpt) != 0) {
-    perror("pthread_mutex_lock(mutex_cpt)");
-    exit(1);
+  perror("pthread_mutex_lock(mutex_cpt)");
+  exit(1);
   }
   cpt--;
   if (pthread_mutex_unlock(&mutex_cpt) != 0) {
-    perror("pthread_mutex_unlock(mutex_cpt)");
-    exit(1);
+  perror("pthread_mutex_unlock(mutex_cpt)");
+  exit(1);
   }
   if(pthread_mutex_lock(&mutex_thread) != 0) {
-    perror("pthread_mutex_lock(mutex_thread");
-    exit(1);
+  perror("pthread_mutex_lock(mutex_thread");
+  exit(1);
   }
   free_client[c->index] = CL_FREE;
   if(pthread_mutex_unlock(&mutex_thread) != 0) {
-    perror("pthread_mutex_unlock(mutex_thread");
-    exit(1);
+  perror("pthread_mutex_unlock(mutex_thread");
+  exit(1);
   }
 
-    return NULL;
+  return NULL;
   }
-  */
+*/

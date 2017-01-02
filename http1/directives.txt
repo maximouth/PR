@@ -1,7 +1,7 @@
 Ou on en est :
 	Q1 : 100%
 	Q2 : 100%
-	Q3 : 70%
+	Q3 : 100%
 	Q4 : 70%
 	Q5 : 0%
 
@@ -69,3 +69,126 @@ Quand on rencontre cette IP, on ajoute Ã  la taille, si cette taille excede le 3
 
 Techniquement, je sait pas trop comment le fork/exec est sensÃ© communiquÃ© avec le client, puisqu'il n'a pas de socket ouverte
 en discussion avec lui...
+  --> avec un pipe nomé, et en re dirigeant la sortie standard sur le
+  l'ecriture du pipe 
+
+
+
+------ *************************************************************** -------
+
+                                  2 janvier 
+       
+------ *************************************************************** --------
+
+
+******* Q4 *******
+
+j'ai pas compris ce que tu me demande de faire...
+fin jessaye mais je vous pas comment faire alors que ca doit etre tout con
+
+******* Q5 ********
+
+
+->deni de service
+
+       stocker  heure de la requette heure_tmp
+       stocker adresse ip dans ip_tmp
+
+       ouvrir le fichier de log
+       	      -> le lire a l'envers (chelou je vois pas trop comment
+       	      	 faire a part de stocker chaques lignes
+       		 -> regarder si la derniere requete a ete recu il y
+  		    a plus de une seconde
+		      -> c'est bon
+  		 -> sinon regarder l'adresse ip
+		    -> si la meme que ip_tmp faire
+		       	  regarder dans le tableau qui contient les
+       			  restrictions si il apparait
+			   -> si oui 
+       			      verifier que le nombre+1 est plus petit
+       			      que le 3eme argument
+       	  		      ->si oui c'est bon relancer le timer
+       			      ->si non rejeter la requette et relancer
+       			        le timer
+       			   -> si non le rajouter et lancer un timer
+
+			   -----> lancer le timer dans tout les cas si
+			   	  dans le tableau
+			   	  -> si le timer arrive au bout :
+				     mettre le nombre dans le tableau
+			   	     des ip a 0 ou la supprimer
+------
+
+
+autre methode :
+      plus simple de trouve et pas casse couille dans le
+      parse du fichier
+
+      a chaque requette recu
+      lancer le timer
+
+      checker si dans le tableau des ip recu
+         -> si oui faire+1
+	    regarder si nombre bon ou pas
+	 si non le mettre dedans a 1
+	 
+
+si timer arrive a 0 retirer laddresse ip du tableau (galere a faire...)
+ou mettre le nombre correspondant a 0
+      
+      
+--> necessite un enorme tableau
+    de le vider de temps en temps aussi pour gagner du temps dans le
+    parse du tableau
+    genre vide si -1 dans la valeur de l'ip ou du nombre comme ca plus simple
+
+
+------------------> remarque plus ou moins pertinente
+
+il y a pas mal de truc foireux que je comprend pas...
+
+   genre le programme s'arrete quand tu lui met une requete et qu'il
+   a repondu
+   le flag est toujours a 1 pourtant..
+      et le programme ne passe pas par la fin aussi..
+      fin c'est chelou quoi
+   
+
+   la fonction de reconnaissance de version http est foireuse je
+   pense..
+   ---> fix
+   	---> tu peux me frapper xd javais des = au lieu de ==
+	dans les test... je devais etre bien fatigué ce jour la 
+
+   le realloc de la liste de thread ne marche pas non plus..
+
+   obligé de lui envoyer deux requetes au debut aussi sinon il ne
+   fait rien
+   fin ca depend des fois...
+   une fois et bas file descriptor
+
+bon apres il est tard et je suis dans un avion xd donc ca complique un
+peu les choses il faut dire X)
+
+
+    j'ai trouve deux bug
+    	 quand tu envoie une requete sans http a la fin
+	       ca renvoie le bon message derreur et tout puis seg fault
+	 quant tu envoie une requete du type
+	       GET / HTTP/1.1 ca core dump
+	 si requette avec nimporte quoi sauf http ca plante aussi
+
+    
+la j'ai juste limpression de regresser...
+   erreur dans le mutex ca fait tout planter..
+
+
+condition sur msg_val fait dans le while aussi
+  mis a 1 avant de rentrer dans la boucle
+  puis mis a jour suivant la requette recu
+  et sort de la boucle quand plus rien a lire ou que le flag = 0
+     test fait en prenant en compte l'evaluation progressive pour
+  eviter davoir a rester bloquer dans le while
+
+je sens que ca va etre la galere...
+a rendre pour demain c'est pas possible

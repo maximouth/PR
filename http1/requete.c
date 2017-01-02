@@ -294,6 +294,11 @@ void *traitement_requete (void *arg) {
 	send (r->client->sock, lu, 1, 0);
       }
     }
+
+    unlink (synchroname);
+    unlink (returnname);
+
+
   }
 
   /* --------------------------------------------------------------------------- */
@@ -354,14 +359,14 @@ void *traitement_requete (void *arg) {
   }
 /* --------------------------------------------------------------------------- */
 
-    free (nom);
-    free (extf);
-    free (fich);
+  //free (nom);
+  //free (extf);
+  //    free (fich);
    
-  for (i = 0 ; i < 1500 ; i++) {
-    free (tab_ext[i]);
-  }
-  free (tab_ext);
+  /* for (i = 0 ; i < 1500 ; i++) { */
+  /*   free (tab_ext[i]); */
+  /* } */
+  //free (tab_ext);
 #ifdef DEBUG
   printf ("all ressources free");
 #endif
