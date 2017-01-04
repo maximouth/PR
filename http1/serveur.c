@@ -230,15 +230,24 @@ int msg_bien_forme (char *s) {
   /* get the length of the first line  */
   l = strlen(line);
 
+  
   /* check if it is a HTTP 1.1 or HTTP 1.1 request  */
-  if ( strcmp(line+l-8,"HTTP/1.1") == 0 )
+      if ( strncmp("HTTP/1.1", line+l-9, 8) == 0 ) {
     /* HTTP/1.1 case */
-    return 1;
-
-  if ( strcmp(line+l-8,"HTTP/1.0") == 0)
+#ifdef DEBUG
+	printf("Case HTTP 1.1\n");
+      fflush(stdout);
+#endif
+	return 1;
+      }
+      if ( strncmp(line+l-9, "HTTP/1.0", 8) == 0) {
     /* HTTP/1.0 case */
-    return 0;
-
+#ifdef DEBUG
+	printf("Case HTTP 1.0\n");
+	fflush(stdout);
+#endif
+	return 0;
+      }
   return -1;
 }
 
