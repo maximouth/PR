@@ -8,7 +8,7 @@ void *traitement_requete (void *arg) {
   char tmp[52] = "./";
   struct stat st;
   char filesize[14];
-  int fd, n, i;
+  int fd, n;
   char buffer[BUF_SIZE];
   /* Request variables */
   char header[ANS_SIZE] = "HTTP/1.1 ";
@@ -20,36 +20,27 @@ void *traitement_requete (void *arg) {
   char *synchroname = malloc (20 * sizeof (char));
   char *returnname = malloc (20 * sizeof (char));
   char *lu = malloc (2 * sizeof (char));
-  char *pidchar = malloc (6 * sizeof (char));
+  char *pidchar = malloc (15 * sizeof (char));
 
   synchroname = strcat (synchroname, "synchro");
   returnname  = strcat (returnname,  "return");
     
-  /** type mime variable **/
-  /* tableau de type mime  */
-  /* C'est quand meme super sale de devoir alouer le tableau a chaque fois... 
-     
-     le free est rajouté, c'est moins sale du coup :p
-     
- */
+  
   mr_mime** tab_ext = (mr_mime**) malloc (1500 * sizeof (mr_mime*));
   /* number of type mime trouve  */
   int count  = 0;
   char *nom  = malloc (60 * sizeof (char));
   char *extf = malloc (60 * sizeof (char));
   char *fich = malloc (50 * sizeof (char));
+
+  if ( !synchroname || !returnname || !lu || !pidchar || !tab_ext || !nom || !extf || !fich ) {
+  	perror("malloc");
+  	exit(1);
+  }
   
   /*  remplir le tableau de type mime */
   tab_ext = parse_file( &count);
-#ifdef DEBUG
-  printf( "tableau des extentions rempli\n");
-  fflush(stdout);
-#endif
   
-#ifdef DEBUG
-  printf("In thread request, thread ID : %lu\n", pthread_self());
-#endif
-
   strncpy(buffer, r->request,BUF_SIZE);
   /* Gettigng filename */
   if (pthread_mutex_lock(&mutex_strtok) != 0) {
@@ -66,7 +57,7 @@ void *traitement_requete (void *arg) {
   /* Getting file's stats.
    * Also checks if file exists
    * and if we can access it. 
-   * Set flag accordingly. */
+   * Set flags accordingly. */
   if (stat (filename, &st) < 0) {
     if (errno == EACCES) {
       code_flag = FLAG_403; /* No read permission on the path*/
@@ -80,7 +71,7 @@ void *traitement_requete (void *arg) {
       code_flag = FLAG_200; /* File exist and can be read */
       /*  if it is an executable file  */
       if (st.st_mode & S_IXUSR) {
-	exe = 1;
+		exe = 1;
       }
     }
     else
@@ -89,36 +80,25 @@ void *traitement_requete (void *arg) {
 
 
   /* Get the file extension  */
-  if (!exe) { 
+  if (!exe) {
+  	/* Executable files skip this part */
     strcpy (fich, filename);
     if (pthread_mutex_lock(&mutex_strtok) != 0) {
       perror("pthread_mutex_lock(mutex_strtok)");
       exit(1);
     }
-    extf = strtok (fich, ".");
-#ifdef DEBUG
-    printf ("ext => %s \n", extf);
-    fflush (stdout);
-#endif
     extf = strtok (NULL, ".");
     if (pthread_mutex_unlock(&mutex_strtok) != 0) {
       perror("pthread_mutex_unlock(mutex_strtok)");
       exit(1);
     }
 
-#ifdef DEBUG
-    printf ("ext => %s \n", extf);
-    fflush (stdout);
-#endif
-
     if (extf != NULL) {
 	   
       /* Get the mime type  */
       type_mime (tab_ext, extf , nom, count);
-#ifdef DEBUG
-      printf ("type mime trouve %s pour ext %s \n", nom, extf);
+      printf ("type mime trouve pour ext %s : %s\n", extf, nom);
       fflush (stdout);
-#endif
     }
     else {
       nom = "text/plain";
@@ -127,35 +107,32 @@ void *traitement_requete (void *arg) {
   
 
   /* Set Loginfo */
-  SetLogAddr (&loginfo, r->client->address);
+  SetLogAddr  (&loginfo, r->client->address);
   SetLogTime  (&loginfo);
   SetLogPid   (&loginfo);
   SetLogTid   (&loginfo);
   strncpy(buffer, r->request,BUF_SIZE);
-
   if (pthread_mutex_lock(&mutex_strtok) != 0) {
     perror("lock mutex_strtok");
     exit(1);
   }
-
   SetLogLine  (&loginfo, strtok (buffer, "\n"));
-
   if (pthread_mutex_unlock(&mutex_strtok) != 0) {
     perror("unlock mutex_strtok");
     exit(1);
   }
   if (!exe)
-    SetLogRsize (&loginfo, st.st_size);
+  	SetLogRsize (&loginfo, st.st_size);
 
   /* Sets answer depending on return code
    * Only if not executable! */
   if(code_flag&FLAG_200 && !exe) {
+  	/* Open file for later */
     if ( (fd = open(filename, O_RDONLY) ) < 0) {
       perror("read()");
       exit(1);
     }
     strcat (header, "200 OK\n");
-    /* TODO : content type shit */
     strcat (header, "Content-Type: ");
     strcat (header, nom);
     strcat (header, "\nContent-Length: ");
@@ -174,8 +151,6 @@ void *traitement_requete (void *arg) {
     strcat(header, "404 Not Found\nContent-Length: 60\n\n<html><body>\n<h1>404</h1>\n<h2>Not Found</h2>\n</body></html>\n");
     SetLogSret(&loginfo, 404);
   }
-  /* --------------------------------------------------------------------------- */
-  /* Question 3 */
   if (exe) {
 
     /* get the pid  */
@@ -186,13 +161,9 @@ void *traitement_requete (void *arg) {
     returnname  = strcat (returnname, pidchar);      
     
     /* Create pipe for syncronisation */
-    if (mkfifo(synchroname, S_IRUSR|S_IWUSR) < 0) {
-      perror("mkfifo() SYNCHRO");
-      exit(1);
-    }
-    /* Pipe to read return value and size of answer */
-    if (mkfifo(returnname, 0760 ) < 0) {//S_IRUSR|S_IWUSR) < 0) {
-      perror("mkfifo() RETURN ");
+    if (mkfifo(synchroname, S_IRUSR|S_IWUSR) < 0 || mkfifo(returnname, 0760 ) < 0) {
+    //if (mkfifo(synchroname, S_IRUSR|S_IWUSR) < 0 ||Â mkfifo(returnname, 0760 ) < 0) {
+      perror("mkfifo()");
       exit(1);
     }
 
@@ -204,11 +175,6 @@ void *traitement_requete (void *arg) {
 
     if (pid == 0) {
       /***** Fils ******/
-
-#ifdef DEBUG
-      printf ("dans le fils\n");
-      fflush (stdout);	
-#endif
 
       /* open the two pipes, 
 	    -> one for synchro, 
@@ -223,11 +189,6 @@ void *traitement_requete (void *arg) {
 	perror("open() fils return");
       exit(1);
       }
-
-#ifdef DEBUG
-      printf ("pipe open fils\n");
-      fflush (stdout);	
-#endif
 
 
  /*      /\* wait fot the green signal  *\/ */
@@ -245,16 +206,10 @@ void *traitement_requete (void *arg) {
 
       /* execute the new program */
       strcat(tmp,filename);
-      execlp (tmp, tmp, NULL);
+      execlp (tmp, tmp, synchroname, NULL);
       perror("execlp()");
       exit(1);
     }
-    
-
-#ifdef DEBUG
-    printf ("dans le pere\n");
-    fflush (stdout);	
-#endif
     
     
     /***** Pere ******/
@@ -268,17 +223,7 @@ void *traitement_requete (void *arg) {
       perror("open() pere return");
       exit(1);
     }
-
-
-    
-#ifdef DEBUG
-      printf ("pipe open pere\n");
-      fflush (stdout);	
-#endif
       
-    /* TODO : !!!!!!Move this at right place 
-       I don't know where..
-     */
     wait(&status);
     if ( !WIFEXITED(status) || WEXITSTATUS(status)!=0 ) {
       SetLogSret(&loginfo, 500);
@@ -368,8 +313,9 @@ void *traitement_requete (void *arg) {
   /* } */
   //free (tab_ext);
 #ifdef DEBUG
-  printf ("all ressources free");
+  printf ("all ressources free\n");
 #endif
   
+  pthread_exit((void *) NULL);
   return NULL;
 }

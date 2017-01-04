@@ -33,12 +33,6 @@ static pthread_mutex_t mutex_cpt = PTHREAD_MUTEX_INITIALIZER;
  * DOIVENT etre fait au sein de la meme section critique! */
 pthread_mutex_t mutex_strtok = PTHREAD_MUTEX_INITIALIZER;
 
-
-/* nombre de client en simultané */
-int cpt = 0;
-
-
-
 int *free_client;
   
 /* Prototypes */
