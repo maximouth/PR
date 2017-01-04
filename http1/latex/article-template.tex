@@ -22,192 +22,79 @@
 %-------------------------------------------------------------------------
 % 
 %
-\documentclass[final,twoside,onecolumn,10pt]{article}
-\newcommand\tab[1][1cm]{\hspace*{#1}}
+\documentclass[final,12pt]{article}
 %
 \usepackage{npac}
 \usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{pifont}
 \usepackage{url}
 \usepackage{graphicx}
 \usepackage{color}
-\usepackage{verbatim}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc} 
+\usepackage[french]{babel}
 
 %
 \begin{document}
 %
-\title{{\color{red} \ul {Rapport de PR}}}
+\title{Rapport du projet de Programmation Répartie\\Un serveur HTTP}
 %\subtitle{Do you have a subtitle?\\ If so, write it here}
-\author{{Ayrault Maxime 3203694\\Caristan Mathis 30}}
+\author{\textsc{Ayrault} Maxime 3203694 \& \textsc{Caristan} Mathis 3000038}
 %
-\date{03/01/2017}
+\date{04/01/2017}
 
 \maketitle
-%
 
-\newpage
-{\huge Introduction\\\\}
-\label{intro}
-\large Notre programme prend en entr\'e un numero de port {\itshape
-  num\_port},\\
-\large un nombre de client {\itshape num\_client} max en paralelle\\
-\large et un nombre de requetes limites par 10 secondes {\itshape num\_cpt}. 
+	Notre programme prend en entrée un numéro de port \textit{num\_port}, un nombre de client \textit{num\_client}, et un volume de donnée limite par adresse IP par dix secondes \textit{num\_cpt}.
+	Voici les commandes à saisir pour compiler et exécuter le programme :
+	\begin{verbatim}
+		$> touch .depend
+		$> make clean depend all
+		$> ./serveur.x 2500 5 5
+	\end{verbatim}
 
+\section*{\textbf{Question 1} - Structure du serveur {\color{green}\checkmark}}
+	Nous détaillons ici dans un premier temps la mise en place du serveur, et son corps principal.
+	Le programme commence par vérifier qu'il a été appelé avec suffisamment de paramètres.
+	Ensuite, il effectue les préparations classiques pour un serveur TCP, à savoir, création d'une socket,
+	et mise en écoute sur cellec-ci. En plus de cela, nous avons choisi d'utiliser la fonction \texttt{select()}, afin de pouvoir quitter proprement le serveur par le biais de l'entrée standard (en tapant \textsc{'QUIT'} ou \textsc{'quit'}).\\
+	Lorsqu'un client se présente, le serveur vérifie qu'il peut accepter un nouveau client. Si c'est le cas, il va créer une thread qui s'occupera de dialoguer avec le client par le biais d'une socket dédiée. Dans le cas où il y aurait trop de clients simultanés, le serveur ignore simplement la connexion, et continue à attendre sur le \texttt{select()}.\\
+	La thread prend comme argument une \texttt{struct Client}, qui contient les informations nécessaires à la communication avec le client, ainsi qu'à sa gestion.
+	Originalement\footnote{Le comportement a été modifié à la question 4}, la thread avait le comportement suivant : 
+	\begin{itemize}
+		\item[$\bullet$] Recevoir la requête sur la socket dédiée,
+		\item[$\bullet$] Vérifier que la requête est correcte (commence par \textsf{GET /}, et finit par \textsf{HTTP/1.x}),
+		\item[$\bullet$] Identifier le chemin, le nom et l'extension du fichier,
+		\item[$\bullet$] Vérifier les droits d'accès aux fichiers,
+		\item[$\bullet$] Parser le fichier \textsl{mime.types}, à la recherche du type de fichier approprié,
+		\item[$\bullet$] Envoyer l'en-tête de réponse,
+		\item[$\bullet$] Envoyer le contenu du fichier,
+		\item[$\bullet$] Fermer la connexion.
+	\end{itemize}
 
-\newpage
-\section{{ {\itshape \ul {Question 1} Structure du serveur (fait) : }}}
+\section*{\textbf{Question 2} - Journalisation {\color{green}\checkmark}}
+	Pour gérer la journalisation, nous nous sommes inspirés d'un fonctionnement orienté objet.
+	Nous avons créé une \texttt{struct Loginfo} qui contient toutes les informations qui doivent être écrites dans le fichier de log. Nous utilisons des fonctions pour remplir cette structure, et pour écrire ce qu'elle contient dans le journal. Ceci nous a permis d'assurer facilement que le remplissage de la structure était \textit{thread-safe}. En effet, il est par exemple important de faire attention lors de la manipulation des fonctions liées au temps notamment, dans un contexte multi-threadé.\\
+	De la même manière, la gestion des accès concurrents au fichier est gérée par la méthode d'écriture dédiée, \texttt{WriteLog()}.
 
-\subsection{Structure Client}
-\begin {verbatim}
+\section*{\textbf{Question 3} - Fichier exécutable {\color{green}\checkmark}}
+	Lors du traitement de la requête, nous avons vu plus haut que le serveur récupérait les statistiques du fichier demandé. Nous pouvons ainsi tester si le fichier est exécutable, si c'est le cas, le serveur va alors effectuer un \texttt{fork()}, et le fils exécutera le fichier.
+	
+\section*{\textbf{Question 4} - Requêtes persistantes {\color{green}\checkmark}}
+	Pour pouvoir gérer les requêtes persistantes, nous avons modifié l'implémentation de notre serveur.
+	Ainsi, la thread précédemment créée qui gérait le client, et la requête, ne s'occupe plus de la requête. De manière similaire à la boucle principale du serveur, la thread reste en attente de requêtes de la part du client. En recevant une requête, la thread (qu'on appelle par la suite \textit{thread client}, va à son tour créer une thread (qu'on appellera \textit{thread requête}), qui gérera la requête.
+	Dans le cas ou plusieurs thread requête s'exécutent pour un même client, il faut veiller à la synchronisation des réponses. Pour cela, nous avons choisi d'utiliser un système de mutex.
+	Les threads vont traiter la requête, mais avant de pouvoir envoyer la réponse au client, elle doivent verrouiller un mutex personnel. Celui-ci est verrouiller dès sa création, et n'est déverrouiller par la thread requête précédente, que quand celle-ci a finit d'envoyer sa propre réponse. Remarquons que cette méthode nécessite, une attention particulière pour certains cas, notamment la première requête pour laquelle le thread client ne doit pas verrouiller le mutex après la création (puisque cette requête n'est précédée par aucune autre).\\
+	Nous avons choisi d'utiliser ce système plutôt qu'un système basée sur les signaux UNIX, pour une raison principale : il est possible dans de très rares cas que la synchronisation ne fonctionne pas, si le signal arrive précisément entre le démasquage de celui-ci, et le \texttt{suspend()}, créant alors un blocage.
 
-typedef struct {
-        /* contient les information sur la socket */
-	struct sockaddr_in csinf;
-        /* le descripteur sur la socket du client */
-	int sock;
-        /* le thread qui lui est attach\'e */
-	pthread_t thread;
-        /* le numero d'index du client dans free_client */
-	int index;
-    Loginfo loginfo;
-} Client;
-
-\end {verbatim}
-
-On a commenc\'e par creer un serveur web TCP avec une socket dont le numero de port est donn\'ee en entr\'ee du programme.\\structure interne du serveur :\\\\\\
-% liste des variables interessantes du serveur
-
-\begin {description}
-\item [{\itshape fd :}] un numero de descripteur de socket.
-\item [{\itshape sinf :}] structure contenant les informations sur la
-  socket du serveur.
-\item [{\itshape free\_client :}] une bitmap de taille {\itshape
-  num\_client} pour les clients libre
-\item [{\itshape clients :}] un tableau de structure {\itchape struct
-  Client} qui contient les informations li\'ees à chaques client present
-  sur le serveur
-\item [{\itshape cpt :}] le nombre de clients à l'instant T sur le serveur
-\item [{\itshape ? :}] est ce que j'en ai oubli\'e
-\end   {description}
-On distingue ensuite deux cas :\\
-\tab ---- > si une entr\'ee clavier est detect\'ee\\
-\tab ---- > si une entr\'ee sur la socket est detect\'ee\\
-\\
-Si une entr\'ee clavier est detect\'ee :\\
-\tab on regarde si cela correspond à QUIT ou quit\\ 
-\tab ---- > si oui on ferme le serveur\\
-\tab ---- > sinon on ne fait rien \\
-\\
-\newpage
-Si une entr\'ee sut la socket est detect\'ee :\\
-\tab on cherche une place dans un tableau de taille {\itshape taille}
-donn\'e comme\\
-\tabdeuxieme argument en entr\'e du programme.\\
-\tab\tab -- > Si il y en a une :\\
-\tab\tab\tab ---- > on tente d ‘accepter la nouvelle conexion  pour recuperer\\ 
-\tab\tab\tab un nouveau desctipteur sur la nouvelle socket\\
-\tab\tab\tab ---- > on rempli notre structure Client avec toute les \\
-\tab\tab\tab informations \\
-\tab\tab\tab de la nouvelle socket\\
-\tab\tab\tab ---- > on lance un nouveau thread qui s’occupera de traiter la\\
-\tab\tab\tab requete re\c u avec la structure contenant les informations comme\\
-\tab\tab\tab argument\\
-\tab\tabSi -- > Si il y n’y en a pas\\
-\tab\tab\tab on ferme la connexion en renvoyant une page html avec le\\
-\tab\tab\tab bon header\\
-\\\\
-Le traitement fait dans le thread :\\\\
-\tab -- > la verification de la requette bien form\'ee\\\\
-\tab -- > la recherche du type mime\\\\
-\tab -- > verification si ouvrable ou pas avec stat\\\\
-\tab -- > verification des droits sur le fichier\\\\
-\tab -- > ouverture du fichier\\\\
-\tab -- > envoie du contenu du fichier au client\\\\
-\tab -- > vider la structure pour permettre de nouvelles connexions\\\\
-\tab -- > fermer la connexion et finir le thread\\\\
-\\
-
-
-\newpage
-\section{{ {\itshape \ul {Question 2} Journalisation (fait) : }}}
-
-recuperer les informations du client et les stocker dans notre structure\\\\
-puis toute les ecrire a la fin d’un fichier /tmp/httpnumetu\\\\
-
-\newpage
-\section{{ {\itshape \ul {Question 3} Fichier executable (fait) : }}}
-
-dans la verification des droits du fichier regarder si le bit exe est mis\\
-à 1 et le stocker dans une variable exe\\\\
-mettre un flag dessus fans le test de quoi faire apres\\
-si le fichier est executable :\\\\
-\tab -- > creer deux tube nom\'ee : les noms sont synchro tid et retour tid\\
-\tab\tab ---- > un pour la syncho\\
-\tab\tab ---- > un pour renvoyer de que renvoie l’execution de l’executable\\
-\tab -- >faire un fork\\
-\tab\tab ---- >dans le fils\\
-\tab\tab\tab ------ > ouvrir les deux fifo une en lecture l’autre en ecriture\\
-\tab\tab\tab ------ > rediriger la sortie standard vers la fifo en ecriture\\
-\tab\tab\tab ------ > attendre le feu vert envoy\'e par le pere pour commencer\\
-\tab\tab\tab ------ > lancer un execl avec le fichier executable\\\\
-\tab\tab ---- >dans le pere\\
-\tab\tab\tab ------ > ouvrir les deux fifo dans le sens inverse du fils\\
-\tab\tab\tab (ouverture - > ecriture)\\
-\tab\tab\tab ------ > envoyer le feu vert au fils\\
-\tab\tab\tab ------ > renvoyer au client tout ce que le fils lui a fait\\
-\tab\tab\tab parvenir par le tube\\
-\tab -- > unlink des tubes\\
-sinon\\
-\tab -- > faire la même chose qu’avant\\\\
-
-
-\newpage
-\section{{ {\itshape \ul {Question 4} Requêtes persistentes (fait) : }}}
-\\
-modification de la fonction testant si la requete est bien form\'e\\
-pour renvoyer aussi si la requette correspond a une requete en \\
-http1.0 ou en http 1.1\\
-\\\\
-mettre comme condition d’arret du traitement des requetes re\c u\\
-avant de fermer la connexion le type de requette recu\\
-\tab -- >si en http1.0 faire un seul tour de boucle puis fermer\\
-\tab la connexion\\
-\tab -- > si en http1.1 faire le traitement de chaque requettes\\
-\tab re\c u jusqu’a n’avoir plus rien a lire\\
-\\\\
-aure truc que jai pas forcement compris aussi...
+\section*{\textbf{Question 5} - Contrer le déni de services {\color{red}\ding{55}}}
+	Nous n'avons pas réussi à mettre en place notre système pour contrer le déni de service.
+	Voici, l'idée sur laquelle il se basait.\\
+	Lors de la réception d'une requête de la part d'un client, une fonction va parser le fichier de log à la recherche des entrées correspondant à ce client. Elle va ensuite additionner le poids de toutes les requêtes qui ont déjà été effectuées par ce client au cours des 10 dernières secondes. Dans le cas où poids de ces requêtes excèderait le maximum autorisé, ce client serait bloqué pendant 10 secondes. Si le client venait à ré-émettre une requête pendant ces 10 secondes, le compteur serait réinitialisé. \`A la fin du compteur, un \textsc{sigalrm}, serait émis, et le client débloqué.
 
 
 
-
-\newpage
-\section{{ {\itshape \ul {Question 5} Contrer le d\'eni de services\\ (pas fait, manque de temps) : }}}
-
-{\itshape gestion de la question :}\\	 
-\tab -- >si timer arrive a 0 :\\
-\tab\tab mettre le nombre de visite de l'ip à -1\\
-\\
-\tab -- >avoir un tableau 2 dimensions de taille fixe 5 ou 10 fois\\
-\tab plus grand que le nombre de clients simultan\'e\\
-\tab contenant l'adresse IP du client et le nombre de visite\\
-\\
-\\
-{\itshape r\'ealisation :}\\	 
-à chaque requette recu :\\\\
-\tab -- > lancer le timer\\
-\tab -- > checker si dans le tableau des ip recu\\
-\tab\tab ---- > si oui faire+1\\
-\tab\tab ---- > regarder si nombre bon ou pas\\
-\tab\tab\tab ------ > si bon executer la requete\\
-\tab\tab\tab ------ > si pas bon jeter la requete\\
-\tab\tab\tab ------ > si = -1 mettre un dans le tableau et\\
-\tab\tab\tab executer la requete\\
-\\\\
-
-{\itshape probleme :}\\      
-\tab -- > necessite un enorme tableau\\
-\tab -- > de le vider de temps en temps aussi pour gagner du\\
-\tab temps dans le parse du tableau\\
-\tab -- > ou mettre -1 dans la valeur de l'ip ou du nombre\\
 
 
 
