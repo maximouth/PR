@@ -15,7 +15,6 @@ EXEC = serveur.x
 
 #.h
 INCS = serveur.h \
-       client.h \
        parse.h \
        logger.h \
        requete.h
