@@ -1,0 +1,55 @@
+%--------------------------------------------------------------------
+%% This file is the NPAC style file. It is strictly forbidden
+%% to modify it: your article LaTeX will be compiled with this
+%% file and everything after the end of the 4th page will be 
+%% ignored for your evaluation.
+%% Laurent Le Guillou & Mélissa Ridel -- 2010/09/08
+%--------------------------------------------------------------------
+
+\usepackage{palatino}
+\usepackage{vmargin}
+\usepackage{fancyhdr}
+
+%--------------------------------------------------------------------
+% Paper format and margins
+
+\setpapersize{A4}
+% \setmargrb{leftmargin}{topmargin}{rightmargin}{bottommargin}
+\setmargrb{2cm}{1.5cm}{2cm}{1.5cm}
+
+%--------------------------------------------------------------------
+% Page headings
+
+\pagestyle{fancy}
+% First page
+\fancypagestyle{plain}{%
+  \fancyhead[RE]{\slshape {\color{red}Projet PR}}
+  \fancyhead[LO]{\slshape {\color{red}Projet Pr}}
+  \fancyhead[RO]{\slshape {\color{red}Academic Year 2016--2017}}
+  \fancyhead[LE]{\slshape {\color{red}Academic Year 2016--2017}}
+  \fancyfoot[C]{\relax}
+  \fancyfoot[LE]{\thepage}
+  \fancyfoot[RO]{\thepage}
+  \renewcommand{\headrulewidth}{0.1pt}%
+  \renewcommand{\footrulewidth}{0.1pt}
+}
+\pagenumbering{arabic}
+\fancyhead[RE]{\slshape {\color{red}Projet PR}}
+\fancyhead[LO]{\slshape {\color{red}Projet Pr}}
+\fancyhead[RO]{\slshape {\color{red}Academic Year 2016--2017}}
+\fancyhead[LE]{\slshape {\color{red}Academic Year 2016--2017}}
+\fancyfoot[C]{\relax}
+\fancyfoot[LE]{\thepage}
+\fancyfoot[RO]{\thepage}
+\renewcommand{\headrulewidth}{0.1pt}
+\renewcommand{\footrulewidth}{0.1pt}
+
+\setlength\headsep{20pt}
+
+%--------------------------------------------------------------------
+% Column separation
+
+\setlength\columnsep{15pt}
+
+%--------------------------------------------------------------------
+

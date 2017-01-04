@@ -31,11 +31,8 @@ static pthread_mutex_t mutex_thread = PTHREAD_MUTEX_INITIALIZER;
 /* mutex pour proteger le compteur de client  */
 static pthread_mutex_t mutex_cpt = PTHREAD_MUTEX_INITIALIZER;
 
-
 /* nombre de client en simultané */
 int cpt = 0;
-
-
 
 int *free_client;
   

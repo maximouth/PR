@@ -1,0 +1,214 @@
+%-------------------------------------------------------------------------
+%
+% Master-2 NPAC 
+%
+% NPAC Lab Projects: template article
+%
+% The final article should not have more than 4 pages
+% you are not allowed to modify fonts, page size and margins.
+% Anything after the end of the 4th page will be ignored.
+%
+%-------------------------------------------------------------------------
+%
+% To compile your article with LaTeX, do this on the terminal:
+%   
+%        pdflatex article-template.tex
+%
+% This will produce a PDF file. Figures may be PDF files, images, etc.
+% If you have PS/EPS figures convert them first in PDF files.
+%
+% You may need to compile twice to get the references properly set.
+% 
+%-------------------------------------------------------------------------
+% 
+%
+\documentclass[final,twoside,onecolumn,10pt]{article}
+\newcommand\tab[1][1cm]{\hspace*{#1}}
+%
+\usepackage{npac}
+\usepackage{amsmath}
+\usepackage{url}
+\usepackage{graphicx}
+\usepackage{color}
+\usepackage{verbatim}
+
+%
+\begin{document}
+%
+\title{{\color{red} \ul {Rapport de PR}}}
+%\subtitle{Do you have a subtitle?\\ If so, write it here}
+\author{{Ayrault Maxime 3203694\\Caristan Mathis 30}}
+%
+\date{03/01/2017}
+
+\maketitle
+%
+
+\newpage
+{\huge Introduction\\\\}
+\label{intro}
+\large Notre programme prend en entr\'e un numero de port {\itshape
+  num\_port},\\
+\large un nombre de client {\itshape num\_client} max en paralelle\\
+\large et un nombre de requetes limites par 10 secondes {\itshape num\_cpt}. 
+
+
+\newpage
+\section{{ {\itshape \ul {Question 1} Structure du serveur (fait) : }}}
+
+\subsection{Structure Client}
+\begin {verbatim}
+
+typedef struct {
+        /* contient les information sur la socket */
+	struct sockaddr_in csinf;
+        /* le descripteur sur la socket du client */
+	int sock;
+        /* le thread qui lui est attach\'e */
+	pthread_t thread;
+        /* le numero d'index du client dans free_client */
+	int index;
+    Loginfo loginfo;
+} Client;
+
+\end {verbatim}
+
+On a commenc\'e par creer un serveur web TCP avec une socket dont le numero de port est donn\'ee en entr\'ee du programme.\\structure interne du serveur :\\\\\\
+% liste des variables interessantes du serveur
+
+\begin {description}
+\item [{\itshape fd :}] un numero de descripteur de socket.
+\item [{\itshape sinf :}] structure contenant les informations sur la
+  socket du serveur.
+\item [{\itshape free\_client :}] une bitmap de taille {\itshape
+  num\_client} pour les clients libre
+\item [{\itshape clients :}] un tableau de structure {\itchape struct
+  Client} qui contient les informations li\'ees à chaques client present
+  sur le serveur
+\item [{\itshape cpt :}] le nombre de clients à l'instant T sur le serveur
+\item [{\itshape ? :}] est ce que j'en ai oubli\'e
+\end   {description}
+On distingue ensuite deux cas :\\
+\tab ---- > si une entr\'ee clavier est detect\'ee\\
+\tab ---- > si une entr\'ee sur la socket est detect\'ee\\
+\\
+Si une entr\'ee clavier est detect\'ee :\\
+\tab on regarde si cela correspond à QUIT ou quit\\ 
+\tab ---- > si oui on ferme le serveur\\
+\tab ---- > sinon on ne fait rien \\
+\\
+\newpage
+Si une entr\'ee sut la socket est detect\'ee :\\
+\tab on cherche une place dans un tableau de taille {\itshape taille}
+donn\'e comme\\
+\tabdeuxieme argument en entr\'e du programme.\\
+\tab\tab -- > Si il y en a une :\\
+\tab\tab\tab ---- > on tente d ‘accepter la nouvelle conexion  pour recuperer\\ 
+\tab\tab\tab un nouveau desctipteur sur la nouvelle socket\\
+\tab\tab\tab ---- > on rempli notre structure Client avec toute les \\
+\tab\tab\tab informations \\
+\tab\tab\tab de la nouvelle socket\\
+\tab\tab\tab ---- > on lance un nouveau thread qui s’occupera de traiter la\\
+\tab\tab\tab requete re\c u avec la structure contenant les informations comme\\
+\tab\tab\tab argument\\
+\tab\tabSi -- > Si il y n’y en a pas\\
+\tab\tab\tab on ferme la connexion en renvoyant une page html avec le\\
+\tab\tab\tab bon header\\
+\\\\
+Le traitement fait dans le thread :\\\\
+\tab -- > la verification de la requette bien form\'ee\\\\
+\tab -- > la recherche du type mime\\\\
+\tab -- > verification si ouvrable ou pas avec stat\\\\
+\tab -- > verification des droits sur le fichier\\\\
+\tab -- > ouverture du fichier\\\\
+\tab -- > envoie du contenu du fichier au client\\\\
+\tab -- > vider la structure pour permettre de nouvelles connexions\\\\
+\tab -- > fermer la connexion et finir le thread\\\\
+\\
+
+
+\newpage
+\section{{ {\itshape \ul {Question 2} Journalisation (fait) : }}}
+
+recuperer les informations du client et les stocker dans notre structure\\\\
+puis toute les ecrire a la fin d’un fichier /tmp/httpnumetu\\\\
+
+\newpage
+\section{{ {\itshape \ul {Question 3} Fichier executable (fait) : }}}
+
+dans la verification des droits du fichier regarder si le bit exe est mis\\
+à 1 et le stocker dans une variable exe\\\\
+mettre un flag dessus fans le test de quoi faire apres\\
+si le fichier est executable :\\\\
+\tab -- > creer deux tube nom\'ee : les noms sont synchro tid et retour tid\\
+\tab\tab ---- > un pour la syncho\\
+\tab\tab ---- > un pour renvoyer de que renvoie l’execution de l’executable\\
+\tab -- >faire un fork\\
+\tab\tab ---- >dans le fils\\
+\tab\tab\tab ------ > ouvrir les deux fifo une en lecture l’autre en ecriture\\
+\tab\tab\tab ------ > rediriger la sortie standard vers la fifo en ecriture\\
+\tab\tab\tab ------ > attendre le feu vert envoy\'e par le pere pour commencer\\
+\tab\tab\tab ------ > lancer un execl avec le fichier executable\\\\
+\tab\tab ---- >dans le pere\\
+\tab\tab\tab ------ > ouvrir les deux fifo dans le sens inverse du fils\\
+\tab\tab\tab (ouverture - > ecriture)\\
+\tab\tab\tab ------ > envoyer le feu vert au fils\\
+\tab\tab\tab ------ > renvoyer au client tout ce que le fils lui a fait\\
+\tab\tab\tab parvenir par le tube\\
+\tab -- > unlink des tubes\\
+sinon\\
+\tab -- > faire la même chose qu’avant\\\\
+
+
+\newpage
+\section{{ {\itshape \ul {Question 4} Requêtes persistentes (fait) : }}}
+\\
+modification de la fonction testant si la requete est bien form\'e\\
+pour renvoyer aussi si la requette correspond a une requete en \\
+http1.0 ou en http 1.1\\
+\\\\
+mettre comme condition d’arret du traitement des requetes re\c u\\
+avant de fermer la connexion le type de requette recu\\
+\tab -- >si en http1.0 faire un seul tour de boucle puis fermer\\
+\tab la connexion\\
+\tab -- > si en http1.1 faire le traitement de chaque requettes\\
+\tab re\c u jusqu’a n’avoir plus rien a lire\\
+\\\\
+aure truc que jai pas forcement compris aussi...
+
+
+
+
+\newpage
+\section{{ {\itshape \ul {Question 5} Contrer le d\'eni de services\\ (pas fait, manque de temps) : }}}
+
+{\itshape gestion de la question :}\\	 
+\tab -- >si timer arrive a 0 :\\
+\tab\tab mettre le nombre de visite de l'ip à -1\\
+\\
+\tab -- >avoir un tableau 2 dimensions de taille fixe 5 ou 10 fois\\
+\tab plus grand que le nombre de clients simultan\'e\\
+\tab contenant l'adresse IP du client et le nombre de visite\\
+\\
+\\
+{\itshape r\'ealisation :}\\	 
+à chaque requette recu :\\\\
+\tab -- > lancer le timer\\
+\tab -- > checker si dans le tableau des ip recu\\
+\tab\tab ---- > si oui faire+1\\
+\tab\tab ---- > regarder si nombre bon ou pas\\
+\tab\tab\tab ------ > si bon executer la requete\\
+\tab\tab\tab ------ > si pas bon jeter la requete\\
+\tab\tab\tab ------ > si = -1 mettre un dans le tableau et\\
+\tab\tab\tab executer la requete\\
+\\\\
+
+{\itshape probleme :}\\      
+\tab -- > necessite un enorme tableau\\
+\tab -- > de le vider de temps en temps aussi pour gagner du\\
+\tab temps dans le parse du tableau\\
+\tab -- > ou mettre -1 dans la valeur de l'ip ou du nombre\\
+
+
+
+\end{document}
