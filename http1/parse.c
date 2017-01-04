@@ -138,24 +138,11 @@ int type_mime (mr_mime **tab, char * ext, char *res, int max) {
   int i = 0;
   
   for ( i = 0; i < max + 1; ++i)  {
-
-#ifdef DEBUG
-    printf("dans le for %d, tabi : %s \n", i, tab[i]->extension );
-    fflush (stdout);
-#endif
-
     if(strcmp(tab[i]->extension, ext) == 0){
 	printf("trouver c'est \n %s \n", tab[i]->nom);
 	strcpy (res, tab[i]->nom);
 	return 0;
       }
-
-#ifdef DEBUG
-      	printf("dans le for %d \n", i);
-	fflush (stdout);
-#endif
-	
-	
     }
 
   /* not found */
