@@ -84,22 +84,22 @@ le serveur récupérait les statistiques du fichier
 demandé. Nous pouvons ainsi tester si le fichier est
 exécutable, si c'est le cas, le serveur va alors effectuer un
 \texttt{fork()}, et le fils exécutera le fichier.\\\\
-Nous avons mis en place un systeme de communication interprocessus
-afin de pouvoir récuperer les information émisent par le fils pour le
-renvoyer au p\`ere qui enverra le tout au client.\\
-Nous avons utilisé pour cela des tube només.\\
+Nous avons mis en place un système de communication inter-processus
+afin de pouvoir récupérer les information émises par le fils pour le
+renvoyer au père qui enverra le tout au client.\\
+Nous avons utilisé pour cela des tube nommés.\\
 Ils ont pour nom \texttt{synchro} et \texttt{retour} suivi par le
-numero de thread du p\`ere.\\   
---\texttt{synchro} est ouvert en lecture dans le fils et en ecriture
+numéro de thread du père.\\   
+$\rightarrow$\texttt{synchroXXX} est ouvert en lecture dans le fils et en écriture
 dans le p\`ere, le fils attends de recevoir un feu vert \texttt{'1'}
 avant de commencer à faire quelque chose.\\
---\texttt{return} est ouvert en ecriture pour le fils et en lecture pour
-le p\`ere. Le p\`ere envoie au client tout ce que le fils lui
+$\rightarrow$\texttt{returnXXX} est ouvert en écriture pour le fils et en lecture pour
+le père. Le père envoie au client tout ce que le fils lui
 donne. Le fils remplace la sortie standard \texttt{stdout} par le tube
-avec \texttt{dup2} puis execute le fichier executable avec \texttt{execl}.\\
-Tout ce que le programme ecrit sur la sortie stardard et du coup
-redirigé vers le port d'\'ecriture du tube.\\
-Une fois tout \c ca fini le p\`ere detruit les deux tubes avec unlink,
+avec \texttt{dup2} puis exécute le fichier exécutable avec \texttt{execlp}.\\
+Tout ce que le programme écrit sur la sortie standard est du coup
+redirigé vers le port d'écriture du tube.\\
+Une fois tout ça fini le père détruit les deux tubes avec \texttt{unlink},
 et reprend ce qu'il doit faire en temps normal.\\\\
 
         
